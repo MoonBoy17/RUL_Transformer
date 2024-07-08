@@ -341,7 +341,10 @@ def c0c02(C0, CO2, arr):
             return "Normal"
     return "Invalid Input: Total concentration of gases cannot be zero."
 import seaborn as sns
+
+
 # Streamlit pages
+
 def home_analysis():
     st.title("Transformer RUL Prediction")
     st.write("Upload your CSV file to get started.")
@@ -367,7 +370,7 @@ def home_analysis():
 
         # Pie Chart of Health Index distribution
         st.subheader("Pie Chart of Health Index Distribution")
-# Create bins for the Health Index ranges
+        # Create bins for the Health Index ranges
         bins = [0, 70, 80, 90, 100]
         labels = ['0-70', '70-80', '80-90', '90-100']
         health_index_binned = pd.cut(data['Health Indx'], bins=bins, labels=labels, right=False)
@@ -379,7 +382,6 @@ def home_analysis():
             fig, ax = plt.subplots(figsize=(6, 6))
             ax.pie(health_index_distribution, labels=health_index_distribution.index, autopct='%1.1f%%', colors=sns.color_palette("Accent", len(health_index_distribution)))
             st.pyplot(fig)
-
 
         # Line Chart for a trend analysis (example: Age vs Health Index)
         st.subheader("Trend Analysis: Age vs Health Index")
@@ -432,8 +434,8 @@ def home_analysis():
             st.write(f"The best model is: {best_model_name}")
 
         if "best_model" in st.session_state:
-            # Upload file to predict health index
-            st.write("Upload a new CSV file to predict the health index based on the best model")
+            # Upload file to predict health index and remaining life
+            st.write("Upload a new CSV file to predict the health index and remaining life based on the best model")
             new_file = st.file_uploader("Choose a new CSV file", type="csv")
 
             if new_file is not None:
@@ -441,13 +443,45 @@ def home_analysis():
                 st.write("Here is how your new dataset looks like:")
                 st.write(new_data.head(10))
 
-                if st.button("Predict Health Index"):
+                if st.button("Predict Health Index and Remaining Life"):
                     new_X = new_data.drop(columns=[column], errors='ignore')  # Ensure the new data has the same columns except "Health Indx"
                     best_model = st.session_state["best_model"]
-                    predictions = best_model.predict(new_X)
-                    new_data["Health Indx Prediction"] = predictions
-                    st.write("Predictions:")
-                    st.write(new_data.head(10))
+                    health_index_predictions = best_model.predict(new_X)
+                    new_data["Health Indx Prediction"] = health_index_predictions
+
+                    # Predict Remaining Life based on Furan values
+                    aging_table = [
+                        {'fal_ppb': 0, 'degree_of_polymerisation': 800, 'percentage_remaining_life': 100, 'interpretation': 'Normal Aging Rate'},
+                        {'fal_ppb': 130, 'degree_of_polymerisation': 700, 'percentage_remaining_life': 90, 'interpretation': ''},
+                        {'fal_ppb': 292, 'degree_of_polymerisation': 600, 'percentage_remaining_life': 79, 'interpretation': ''},
+                        {'fal_ppb': 654, 'degree_of_polymerisation': 500, 'percentage_remaining_life': 66, 'interpretation': 'Accelerated Aging Rate'},
+                        {'fal_ppb': 1464, 'degree_of_polymerisation': 400, 'percentage_remaining_life': 50, 'interpretation': ''},
+                        {'fal_ppb': 1720, 'degree_of_polymerisation': 380, 'percentage_remaining_life': 46, 'interpretation': ''},
+                        {'fal_ppb': 2021, 'degree_of_polymerisation': 360, 'percentage_remaining_life': 42, 'interpretation': ''},
+                        {'fal_ppb': 2374, 'degree_of_polymerisation': 340, 'percentage_remaining_life': 38, 'interpretation': 'Excessive Aging Danger Zone'},
+                        {'fal_ppb': 2789, 'degree_of_polymerisation': 320, 'percentage_remaining_life': 33, 'interpretation': ''},
+                        {'fal_ppb': 3277, 'degree_of_polymerisation': 300, 'percentage_remaining_life': 29, 'interpretation': ''},
+                        {'fal_ppb': 3851, 'degree_of_polymerisation': 280, 'percentage_remaining_life': 24, 'interpretation': 'High Risk of Failure'},
+                        {'fal_ppb': 4524, 'degree_of_polymerisation': 260, 'percentage_remaining_life': 19, 'interpretation': ''},
+                        {'fal_ppb': 5315, 'degree_of_polymerisation': 240, 'percentage_remaining_life': 13, 'interpretation': 'End of expected life of paper insulation and of the transformer'},
+                        {'fal_ppb': 6245, 'degree_of_polymerisation': 220, 'percentage_remaining_life': 7, 'interpretation': ''},
+                        {'fal_ppb': 7377, 'degree_of_polymerisation': 200, 'percentage_remaining_life': 0, 'interpretation': ''}
+                    ]
+
+                    remaining_life_predictions = []
+                    if 'Furan' in new_data.columns:
+                        for idx, fal_ppb in enumerate(new_data['Furan']):
+                            result = interpolateData(aging_table, fal_ppb)
+                            remaining_life_percentage = result['percentage_remaining_life']
+                            remaining_life_years = (remaining_life_percentage / 100) * new_data.loc[idx, 'Age(Yrs)']
+                            remaining_life_predictions.append(remaining_life_years)
+                        new_data['Predicted Remaining Life (in years)'] = remaining_life_predictions
+                    else:
+                        st.warning("The uploaded CSV file must contain a 'Furan' column.")
+
+                    st.write("Predictions added to the dataset:")
+                    st.write(new_data.head(25))
+
 
                     new_predictions_csv = new_data.to_csv(index=False).encode('utf-8')
                     st.download_button(
@@ -478,7 +512,6 @@ def home_analysis():
                         fig, ax = plt.subplots(figsize=(18, 12))
                         sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax)
                         st.pyplot(fig)
-
 
 def interpolate(x1, y1, x2, y2, x):
     return y1 + ((y2 - y1) / (x2 - x1)) * (x - x1)
