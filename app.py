@@ -347,7 +347,6 @@ import seaborn as sns
 
 
 # Streamlit pages
-
 def home_analysis():
     st.title("Transformer RUL Prediction")
     st.write("Upload your CSV file to get started.")
@@ -455,36 +454,40 @@ def home_analysis():
                     # Predict Remaining Life based on Furan values
                     aging_table = [
                         {'fal_ppb': 0, 'degree_of_polymerisation': 800, 'percentage_remaining_life': 100, 'interpretation': 'Normal Aging Rate'},
-                        {'fal_ppb': 130, 'degree_of_polymerisation': 700, 'percentage_remaining_life': 90, 'interpretation': ''},
-                        {'fal_ppb': 292, 'degree_of_polymerisation': 600, 'percentage_remaining_life': 79, 'interpretation': ''},
+                        {'fal_ppb': 130, 'degree_of_polymerisation': 700, 'percentage_remaining_life': 90, 'interpretation': 'Normal Aging Rate'},
+                        {'fal_ppb': 292, 'degree_of_polymerisation': 600, 'percentage_remaining_life': 79, 'interpretation': 'Normal Aging Rate'},
                         {'fal_ppb': 654, 'degree_of_polymerisation': 500, 'percentage_remaining_life': 66, 'interpretation': 'Accelerated Aging Rate'},
-                        {'fal_ppb': 1464, 'degree_of_polymerisation': 400, 'percentage_remaining_life': 50, 'interpretation': ''},
-                        {'fal_ppb': 1720, 'degree_of_polymerisation': 380, 'percentage_remaining_life': 46, 'interpretation': ''},
-                        {'fal_ppb': 2021, 'degree_of_polymerisation': 360, 'percentage_remaining_life': 42, 'interpretation': ''},
+                        {'fal_ppb': 1464, 'degree_of_polymerisation': 400, 'percentage_remaining_life': 50, 'interpretation': 'Accelerated Aging Rate'},
+                        {'fal_ppb': 1720, 'degree_of_polymerisation': 380, 'percentage_remaining_life': 46, 'interpretation': 'Accelerated Aging Rate'},
+                        {'fal_ppb': 2021, 'degree_of_polymerisation': 360, 'percentage_remaining_life': 42, 'interpretation': 'Accelerated Aging Rate'},
                         {'fal_ppb': 2374, 'degree_of_polymerisation': 340, 'percentage_remaining_life': 38, 'interpretation': 'Excessive Aging Danger Zone'},
-                        {'fal_ppb': 2789, 'degree_of_polymerisation': 320, 'percentage_remaining_life': 33, 'interpretation': ''},
-                        {'fal_ppb': 3277, 'degree_of_polymerisation': 300, 'percentage_remaining_life': 29, 'interpretation': ''},
+                        {'fal_ppb': 2789, 'degree_of_polymerisation': 320, 'percentage_remaining_life': 33, 'interpretation': 'Excessive Aging Danger Zone'},
+                        {'fal_ppb': 3277, 'degree_of_polymerisation': 300, 'percentage_remaining_life': 29, 'interpretation': 'Excessive Aging Danger Zone'},
                         {'fal_ppb': 3851, 'degree_of_polymerisation': 280, 'percentage_remaining_life': 24, 'interpretation': 'High Risk of Failure'},
-                        {'fal_ppb': 4524, 'degree_of_polymerisation': 260, 'percentage_remaining_life': 19, 'interpretation': ''},
+                        {'fal_ppb': 4524, 'degree_of_polymerisation': 260, 'percentage_remaining_life': 19, 'interpretation': 'High Risk of Failure'},
                         {'fal_ppb': 5315, 'degree_of_polymerisation': 240, 'percentage_remaining_life': 13, 'interpretation': 'End of expected life of paper insulation and of the transformer'},
-                        {'fal_ppb': 6245, 'degree_of_polymerisation': 220, 'percentage_remaining_life': 7, 'interpretation': ''},
-                        {'fal_ppb': 7377, 'degree_of_polymerisation': 200, 'percentage_remaining_life': 0, 'interpretation': ''}
-                    ]
+                        {'fal_ppb': 6245, 'degree_of_polymerisation': 220, 'percentage_remaining_life': 7, 'interpretation': 'End of expected life of paper insulation and of the transformer'},
+                        {'fal_ppb': 7377, 'degree_of_polymerisation': 200, 'percentage_remaining_life': 0, 'interpretation': 'End of expected life of paper insulation and of the transformer'}
+                                    ]
 
                     remaining_life_predictions = []
                     if 'Furan' in new_data.columns:
                         for idx, fal_ppb in enumerate(new_data['Furan']):
                             result = interpolateData(aging_table, fal_ppb)
                             remaining_life_percentage = result['percentage_remaining_life']
-                            remaining_life_years = (remaining_life_percentage / 100) * new_data.loc[idx, 'Age(Yrs)']
-                            remaining_life_predictions.append(remaining_life_years)
+
+                            if remaining_life_percentage is not None:  # Add this check
+                                remaining_life_years = (remaining_life_percentage / 100) * new_data.loc[idx, 'Age(Yrs)']
+                                remaining_life_predictions.append(remaining_life_years)
+                            else:
+                                remaining_life_predictions.append(None)  # Handle None case if needed
+
                         new_data['Predicted Remaining Life (in years)'] = remaining_life_predictions
                     else:
                         st.warning("The uploaded CSV file must contain a 'Furan' column.")
-
-                    st.write("Predictions added to the dataset:")
+                    
+                    st.write("Predictions added to dataset:")
                     st.write(new_data.head(25))
-
 
                     new_predictions_csv = new_data.to_csv(index=False).encode('utf-8')
                     st.download_button(
@@ -550,20 +553,20 @@ def furan_pred():
 
     aging_table = [
         {'fal_ppb': 0, 'degree_of_polymerisation': 800, 'percentage_remaining_life': 100, 'interpretation': 'Normal Aging Rate'},
-        {'fal_ppb': 130, 'degree_of_polymerisation': 700, 'percentage_remaining_life': 90, 'interpretation': ''},
-        {'fal_ppb': 292, 'degree_of_polymerisation': 600, 'percentage_remaining_life': 79, 'interpretation': ''},
+        {'fal_ppb': 130, 'degree_of_polymerisation': 700, 'percentage_remaining_life': 90, 'interpretation': 'Normal Aging Rate'},
+        {'fal_ppb': 292, 'degree_of_polymerisation': 600, 'percentage_remaining_life': 79, 'interpretation': 'Normal Aging Rate'},
         {'fal_ppb': 654, 'degree_of_polymerisation': 500, 'percentage_remaining_life': 66, 'interpretation': 'Accelerated Aging Rate'},
-        {'fal_ppb': 1464, 'degree_of_polymerisation': 400, 'percentage_remaining_life': 50, 'interpretation': ''},
-        {'fal_ppb': 1720, 'degree_of_polymerisation': 380, 'percentage_remaining_life': 46, 'interpretation': ''},
-        {'fal_ppb': 2021, 'degree_of_polymerisation': 360, 'percentage_remaining_life': 42, 'interpretation': ''},
+        {'fal_ppb': 1464, 'degree_of_polymerisation': 400, 'percentage_remaining_life': 50, 'interpretation': 'Accelerated Aging Rate'},
+        {'fal_ppb': 1720, 'degree_of_polymerisation': 380, 'percentage_remaining_life': 46, 'interpretation': 'Accelerated Aging Rate'},
+        {'fal_ppb': 2021, 'degree_of_polymerisation': 360, 'percentage_remaining_life': 42, 'interpretation': 'Accelerated Aging Rate'},
         {'fal_ppb': 2374, 'degree_of_polymerisation': 340, 'percentage_remaining_life': 38, 'interpretation': 'Excessive Aging Danger Zone'},
-        {'fal_ppb': 2789, 'degree_of_polymerisation': 320, 'percentage_remaining_life': 33, 'interpretation': ''},
-        {'fal_ppb': 3277, 'degree_of_polymerisation': 300, 'percentage_remaining_life': 29, 'interpretation': ''},
+        {'fal_ppb': 2789, 'degree_of_polymerisation': 320, 'percentage_remaining_life': 33, 'interpretation': 'Excessive Aging Danger Zone'},
+        {'fal_ppb': 3277, 'degree_of_polymerisation': 300, 'percentage_remaining_life': 29, 'interpretation': 'Excessive Aging Danger Zone'},
         {'fal_ppb': 3851, 'degree_of_polymerisation': 280, 'percentage_remaining_life': 24, 'interpretation': 'High Risk of Failure'},
-        {'fal_ppb': 4524, 'degree_of_polymerisation': 260, 'percentage_remaining_life': 19, 'interpretation': ''},
+        {'fal_ppb': 4524, 'degree_of_polymerisation': 260, 'percentage_remaining_life': 19, 'interpretation': 'High Risk of Failure'},
         {'fal_ppb': 5315, 'degree_of_polymerisation': 240, 'percentage_remaining_life': 13, 'interpretation': 'End of expected life of paper insulation and of the transformer'},
-        {'fal_ppb': 6245, 'degree_of_polymerisation': 220, 'percentage_remaining_life': 7, 'interpretation': ''},
-        {'fal_ppb': 7377, 'degree_of_polymerisation': 200, 'percentage_remaining_life': 0, 'interpretation': ''}
+        {'fal_ppb': 6245, 'degree_of_polymerisation': 220, 'percentage_remaining_life': 7, 'interpretation': 'End of expected life of paper insulation and of the transformer'},
+        {'fal_ppb': 7377, 'degree_of_polymerisation': 200, 'percentage_remaining_life': 0, 'interpretation': 'End of expected life of paper insulation and of the transformer'}
     ]
 
     # Centering and styling the "Choose input method" radio button
