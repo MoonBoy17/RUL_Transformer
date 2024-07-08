@@ -3,6 +3,9 @@ import pandas as pd
 from lazypredict.Supervised import LazyRegressor
 import matplotlib.pyplot as plt
 import numpy as np
+import random
+import hashlib
+
 
 st.set_page_config(page_title="Interactive Data Analysis", page_icon=":bar_chart:", layout="wide")
 
@@ -597,77 +600,238 @@ def dga_analysis():
 
 
 
-def main():
-    pages = {
-        "Home and Analysis": home_analysis,
-        "DGA Analysis": dga_analysis,
-        "Furan Value Prediction": furan_pred,
-        "Transformer Health Index and Abnormality Detection": Health_index,
-    }
-    
-    st.sidebar.title("Created by Harsh Sukhwal")
-    
-    with st.sidebar:
-        st.image("https://www.sellintegro.cloud/images/cloud_asset_1-2.svg", use_column_width=True)
-        
-        st.markdown("## Choose a Page")
-        page = st.radio("", list(pages.keys()))
-
-        st.markdown("---")
-        st.markdown("## About")
-        st.info(
-            """
-            This application provides tools for Transformer Health Index prediction and analysis, including:
-            - Data Visualization
-            - Model Training and Predictions
-            - Dissolved Gas Analysis (DGA)
-            - Furan Value Prediction
-            """
-        )
-
-        st.markdown("---")
-        st.markdown("## Contact")
-        
-        st.markdown(
-            """
-            <style>
-            .contact-icons {
+def add_custom_css():
+    st.markdown("""
+        <style>
+            body {
+                margin: 0;
+                padding: 0;
+                background-image: url('https://www.yourbackgroundimageurl.com');
+                background-size: cover;
+                background-repeat: no-repeat;
+                font-family: Arial, sans-serif;
+            }
+            .login-header {
+                text-align: center;
+                font-size: 36px;
+                font-weight: bold;
+                margin: 50px 0 20px; /* Adjust margin as needed */
+                color: #ffffff; /* White text */
+                background-color: #1e90ff; /* Dark Blue background */
+                padding: 15px 30px;
+                border-radius: 10px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            }
+            .login-footer {
+                position: fixed;
+                left: 0;
+                bottom: 0;
+                width: 100%;
+                background-color: #1e90ff; /* Dark Blue background */
+                color: white; /* White text */
+                text-align: center;
+                padding: 10px;
+                border-top: 1px solid #e0e0e0;
+            }
+            .login-container {
                 display: flex;
+                justify-content: center;
                 align-items: center;
+                height: calc(100vh - 100px); /* Adjust height to leave space for header and footer */
+                flex-direction: column;
             }
-            .contact-icons img {
-                width: 30px;
-                height: 30px;
-                margin-right: 10px;
+            .login-box {
+                width: 400px;
+                padding: 30px;
+                background: #ffffff; /* White background */
+                border-radius: 10px;
+                box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+                margin-top: 40px; /* Adjust margin as needed */
             }
-            </style>
-            <div class="contact-icons">
-                <img src="https://img.icons8.com/ios-filled/50/000000/github.png"/>
-                <a href="https://github.com/MoonBoy17" target="_blank">GitHub</a>
-            </div>
-            <div class="contact-icons">
-                <img src="https://img.icons8.com/ios-filled/50/000000/linkedin.png"/>
-                <a href="https://www.linkedin.com/in/Harsh-Sukhwal/" target="_blank">LinkedIn</a>
-            </div>
-            <div class="contact-icons">
-                <img src="https://img.icons8.com/ios-filled/50/000000/gmail.png"/>
-                <a href="mailto:harshsukhwal17@gmail.com" target="_blank">Email</a>
-            </div>
-            <div class="contact-icons">
-                <img src="https://img.icons8.com/ios-filled/50/000000/internet.png"/>
-                <a href="blank" target="_blank">Website</a>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+            .login-input {
+                width: 100%;
+                padding: 20px;
+                margin: 15px 0;
+                border: 2px solid #1e90ff; /* Dark Blue border */
+                border-radius: 10px;
+                box-sizing: border-box;
+                font-size: 18px; /* Increased font size */
+            }
+            .login-button {
+                width: 100%;
+                background-color: #1e90ff; /* Dark Blue */
+                color: white; /* White text */
+                padding: 18px;
+                border: none;
+                border-radius: 10px;
+                cursor: pointer;
+                font-size: 20px;
+                transition: background-color 0.3s;
+            }
+            .login-button:hover {
+                background-color: #007acc; /* Darker Blue on hover */
+            }
+            .captcha {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-top: 20px;
+                margin-bottom: 20px;
+            }
+            .captcha-text {
+                font-size: 20px;
+                color: #1e90ff; /* Dark Blue text */
+            }
+            @media (max-width: 600px) {
+                .login-box {
+                    width: 90%;
+                    padding: 25px;
+                }
+            }
+        </style>
+    """, unsafe_allow_html=True)
 
-    if "page" not in st.session_state:
-        st.session_state["page"] = page
 
-    if st.session_state["page"] != page:
-        st.session_state["page"] = page
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
 
-    pages[page]()
+def generate_captcha():
+    num1 = random.randint(1, 10)
+    num2 = random.randint(1, 10)
+    return num1, num2, f"{num1} + {num2} = ?"
+
+
+
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def generate_captcha():
+    num1 = random.randint(1, 10)
+    num2 = random.randint(1, 10)
+    return num1, num2, f"{num1} + {num2} = ?"
+
+def login():
+    add_custom_css()
+
+    st.markdown('<div class="login-header">Login to Transformer RUL Prediction</div>', unsafe_allow_html=True)
+
+    username = st.text_input("**Username**", key="username", placeholder="Enter your username")
+    password = st.text_input("**Password**", type="password", key="password", placeholder="Enter your password")
+
+    # Initialize CAPTCHA
+    if "captcha_num1" not in st.session_state:
+        st.session_state.captcha_num1, st.session_state.captcha_num2, st.session_state.captcha_text = generate_captcha()
+
+    captcha_answer = st.text_input("**"+st.session_state.captcha_text+"**", key="captcha", placeholder="Enter answer")
+
+    # Mock stored credentials
+    stored_username = "Harsh"
+    stored_password_hash = hash_password("pikachu")
+
+    if st.button("**Login**", key="login", help="Click to login"):
+        if not captcha_answer:
+            st.error("Please enter the CAPTCHA answer.")
+        else:
+            try:
+                if int(captcha_answer) == (st.session_state.captcha_num1 + st.session_state.captcha_num2):
+                    if username == stored_username and hash_password(password) == stored_password_hash:
+                        st.session_state["logged_in"] = True
+                        st.success("Login successful")
+                    else:
+                        st.error("Invalid username or password. Please try again.")
+                    # Refresh CAPTCHA
+                    st.session_state.captcha_num1, st.session_state.captcha_num2, st.session_state.captcha_text = generate_captcha()
+                else:
+                    st.error("Incorrect CAPTCHA. Please try again.")
+            except ValueError:
+                st.error("Invalid CAPTCHA format. Please enter a valid number.")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="login-footer">Created by Harsh Sukhwal</div>', unsafe_allow_html=True)
+
+
+
+def main():
+    if "logged_in" not in st.session_state:
+        st.session_state["logged_in"] = False
+    
+    if not st.session_state["logged_in"]:
+        login()
+    else:    
+        pages = {
+            "Analysis and Prediction by ML Model": home_analysis,
+            "DGA Analysis": dga_analysis,
+            "Furan Value Prediction": furan_pred,
+            "Transformer Health Index and Abnormality Detection": Health_index,
+        }
+        
+        st.sidebar.title("Transformer Remaining Useful Life Prediction")
+        
+        with st.sidebar:
+
+            st.image("https://www.sellintegro.cloud/images/cloud_asset_1-2.svg", use_column_width=True)
+
+            st.markdown("## Created by Harsh Sukhwal")
+            st.markdown("---")
+            st.markdown("## Choose a page")
+            page = st.radio("", list(pages.keys()))
+            st.markdown("---")
+            st.markdown("## About")
+            st.info(
+                """
+                This application provides tools for Transformer Health Index prediction and analysis, including:
+                - Data Visualization
+                - Model Training and Predictions
+                - Dissolved Gas Analysis (DGA)
+                - Furan Value Prediction
+                """
+            )
+
+            st.markdown("---")
+            st.markdown("## Contact")
+            
+            st.markdown(
+                """
+                <style>
+                .contact-icons {
+                    display: flex;
+                    align-items: center;
+                }
+                .contact-icons img {
+                    width: 25px;
+                    height: 25px;
+                    margin-right: 10px;
+                }
+                </style>
+                <div class="contact-icons">
+                    <img src="https://img.icons8.com/ios-filled/50/000000/github.png"/>
+                    <a href="https://github.com/MoonBoy17" target="_blank">GitHub</a>
+                </div>
+                <div class="contact-icons">
+                    <img src="https://img.icons8.com/ios-filled/50/000000/linkedin.png"/>
+                    <a href="https://www.linkedin.com/in/Harsh-Sukhwal/" target="_blank">LinkedIn</a>
+                </div>
+                <div class="contact-icons">
+                    <img src="https://img.icons8.com/ios-filled/50/000000/gmail.png"/>
+                    <a href="mailto:harshsukhwal17@gmail.com" target="_blank">Email</a>
+                </div>
+                <div class="contact-icons">
+                    <img src="https://img.icons8.com/ios-filled/50/000000/internet.png"/>
+                    <a href="blank" target="_blank">Website</a>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        if "page" not in st.session_state:
+            st.session_state["page"] = page
+
+        if st.session_state["page"] != page:
+            st.session_state["page"] = page
+
+        pages[page]()
 
 if __name__ == "__main__":
     main()
