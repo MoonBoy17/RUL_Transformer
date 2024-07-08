@@ -519,16 +519,34 @@ def home_analysis():
 def interpolate(x1, y1, x2, y2, x):
     return y1 + ((y2 - y1) / (x2 - x1)) * (x - x1)
 
+
 def interpolateData(table, fal_ppb):
-    for i in range(len(table) - 1):
-        if table[i]['fal_ppb'] <= fal_ppb <= table[i + 1]['fal_ppb']:
-            degree_of_polymerisation = interpolate(table[i]['fal_ppb'], table[i]['degree_of_polymerisation'], table[i + 1]['fal_ppb'], table[i + 1]['degree_of_polymerisation'], fal_ppb)
-            percentage_remaining_life = interpolate(table[i]['fal_ppb'], table[i]['percentage_remaining_life'], table[i + 1]['fal_ppb'], table[i + 1]['percentage_remaining_life'], fal_ppb)
-            interpretation = table[i]['interpretation'] if table[i]['interpretation'] else table[i + 1]['interpretation']
-            return {'fal_ppb': fal_ppb, 'degree_of_polymerisation': degree_of_polymerisation, 'percentage_remaining_life': percentage_remaining_life, 'interpretation': interpretation}
-    return table[0] if fal_ppb < table[0]['fal_ppb'] else table[-1]
+    # Interpolation logic goes here
+    for i in range(len(table)-1):
+        if table[i]['fal_ppb'] <= fal_ppb <= table[i+1]['fal_ppb']:
+            x0, y0 = table[i]['fal_ppb'], table[i]['degree_of_polymerisation']
+            x1, y1 = table[i+1]['fal_ppb'], table[i+1]['degree_of_polymerisation']
+            degree_of_polymerisation = y0 + (fal_ppb - x0) * (y1 - y0) / (x1 - x0)
+            
+            x0, y0 = table[i]['fal_ppb'], table[i]['percentage_remaining_life']
+            x1, y1 = table[i+1]['fal_ppb'], table[i+1]['percentage_remaining_life']
+            percentage_remaining_life = y0 + (fal_ppb - x0) * (y1 - y0) / (x1 - x0)
+            
+            interpretation = table[i]['interpretation'] if table[i]['interpretation'] else table[i+1]['interpretation']
+            
+            return {
+                'degree_of_polymerisation': degree_of_polymerisation,
+                'percentage_remaining_life': percentage_remaining_life,
+                'interpretation': interpretation
+            }
+    return {
+        'degree_of_polymerisation': None,
+        'percentage_remaining_life': None,
+        'interpretation': 'Value out of range'
+    }
+
 def furan_pred():
-    st.title("Transformer Aging Data Interpolation")
+    st.title("Transformer Age Prediction using Furan")
 
     aging_table = [
         {'fal_ppb': 0, 'degree_of_polymerisation': 800, 'percentage_remaining_life': 100, 'interpretation': 'Normal Aging Rate'},
@@ -548,55 +566,205 @@ def furan_pred():
         {'fal_ppb': 7377, 'degree_of_polymerisation': 200, 'percentage_remaining_life': 0, 'interpretation': ''}
     ]
 
-    fal_ppb = st.number_input('Enter the 2FAL (ppb) value:', min_value=0, value=0, step=100)
-    if st.button('Predict'):
-        result = interpolateData(aging_table, fal_ppb)
-        st.write(f"Estimated degree of polymerisation: {result['degree_of_polymerisation']:.2f}")
-        st.write(f"Estimated percentage of remaining life: {result['percentage_remaining_life']:.2f}")
-        st.write(f"Interpretation: {result['interpretation']}")
+    # Centering and styling the "Choose input method" radio button
+    st.markdown(
+        """
+        <style>
+        .centered-radio {
+            display: flex;
+            justify-content: center;
+        }
+        .centered-radio label {
+            font-size: 20px;
+            margin-right: 10px;
+        }
+        .centered-radio div {
+            display: flex;
+            align-items: center;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="centered-radio">', unsafe_allow_html=True)
+    analysis_type = st.radio("Choose input method:", ("Manual Entry", "Upload CSV"))
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    if analysis_type == "Manual Entry":
+        fal_ppb = st.number_input('Enter the 2FAL (ppb) value:', min_value=0, value=0, step=100)
+        if st.button('Predict'):
+            result = interpolateData(aging_table, fal_ppb)
+            st.write(f"Estimated degree of polymerisation: {result['degree_of_polymerisation']:.2f}")
+            st.write(f"Estimated percentage of remaining life: {result['percentage_remaining_life']:.2f}")
+            st.write(f"Interpretation: {result['interpretation']}")
+            
+    elif analysis_type == "Upload CSV":
+        uploaded_file = st.file_uploader("Choose a file")
+        if uploaded_file is not None:
+            data = pd.read_csv(uploaded_file)
+            data = data.dropna(axis=1, how='all')  # Drop columns with all NaN values
+            if "Furan" in data.columns:
+                results = []
+                for index, row in data.iterrows():
+                    Furan = row['Furan']
+                    result = interpolateData(aging_table, Furan)
+                    results.append(result)
+
+                results_df = pd.DataFrame(results)
+                combined_df = pd.concat([data, results_df], axis=1)
+                st.write(combined_df)
+
+                csv = combined_df.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="Download results as CSV",
+                    data=csv,
+                    file_name='furan_analysis_results.csv',
+                    mime='text/csv',
+                )
+            else:
+                st.error("The uploaded file does not contain the required column: fal_ppb.")
+
+
+
+def map_column_names(df):
+    column_mapping = {
+        "H2": ["H2", "Hydrogen"],
+        "CH4": ["CH4", "Methane"],
+        "C2H6": ["C2H6", "Ethane"],
+        "C2H4": ["C2H4", "Ethylene"],
+        "C2H2": ["C2H2", "Acetylene"],
+        "CO": ["CO", "Carbon Monoxide"],
+        "CO2": ["CO2", "Carbon Dioxide"]
+    }
+
+    mapped_columns = {}
+    for key, possible_names in column_mapping.items():
+        for name in possible_names:
+            if name in df.columns:
+                mapped_columns[key] = df[name]
+                break
+    return pd.DataFrame(mapped_columns)
+
+def process_dga_file(uploaded_file):
+    df = pd.read_csv(uploaded_file)
+    mapped_df = map_column_names(df)
+    if mapped_df.shape[1] != 7:
+        st.error("The uploaded file does not contain all the required columns.")
+        return None
+    return df, mapped_df
 
 def dga_analysis():
     st.title("DGA Analysis")
 
-    arr = [0, 0, 0, 0]
-    arr1 = [0, 0, 0, 0]
+    # Centering and styling the "Choose input method" radio button
+    st.markdown(
+        """
+        <style>
+        .centered-radio {
+            display: flex;
+            justify-content: center;
+        }
+        .centered-radio label {
+            font-size: 20px;
+            margin-right: 10px;
+        }
+        .centered-radio div {
+            display: flex;
+            align-items: center;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    dga_data = {}
-    dga_data["H2"] = st.number_input("Enter H2 (ppm):", min_value=0.0)
-    dga_data["CH4"] = st.number_input("Enter CH4 (ppm):", min_value=0.0)
-    dga_data["C2H6"] = st.number_input("Enter C2H6 (ppm):", min_value=0.0)
-    dga_data["C2H4"] = st.number_input("Enter C2H4 (ppm):", min_value=0.0)
-    dga_data["C2H2"] = st.number_input("Enter C2H2 (ppm):", min_value=0.0)
-    dga_data["CO"] = st.number_input("Enter CO (ppm):", min_value=0.0)
-    dga_data["CO2"] = st.number_input("Enter CO2 (ppm):", min_value=0.0)
+    st.markdown('<div class="centered-radio">', unsafe_allow_html=True)
+    analysis_type = st.radio("Choose input method:", ("Manual Entry", "Upload CSV"))
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    if st.button("Evaluate DGA"):
-        result = evaluateDGA(dga_data, arr)
-        duval_result = duvalTriangle(dga_data, arr)
-        C10 = dga_data["CH4"] / dga_data["H2"] if dga_data["H2"] != 0 else 9999999
-        C11 = dga_data["C2H2"] / dga_data["H2"] if dga_data["H2"] != 0 else 9999999
-        C12 = dga_data["C2H2"] / dga_data["C2H6"] if dga_data["C2H6"] != 0 else 9999999
-        C10a = dga_data["CH4"] / dga_data["H2"] if dga_data["H2"] != 0 else 9999999
-        C11a = dga_data["C2H2"] / dga_data["H2"] if dga_data["H2"] != 0 else 9999999
-        C12a = dga_data["C2H2"] / dga_data["C2H6"] if dga_data["C2H6"] != 0 else 9999999
-        C13a = dga_data["C2H4"] / dga_data["C2H6"] if dga_data["C2H6"] != 0 else 9999999
+    if analysis_type == "Manual Entry":
+        dga_data = {}
+        dga_data["H2"] = st.number_input("Enter H2 (ppm):", min_value=0.0)
+        dga_data["CH4"] = st.number_input("Enter CH4 (ppm):", min_value=0.0)
+        dga_data["C2H6"] = st.number_input("Enter C2H6 (ppm):", min_value=0.0)
+        dga_data["C2H4"] = st.number_input("Enter C2H4 (ppm):", min_value=0.0)
+        dga_data["C2H2"] = st.number_input("Enter C2H2 (ppm):", min_value=0.0)
+        dga_data["CO"] = st.number_input("Enter CO (ppm):", min_value=0.0)
+        dga_data["CO2"] = st.number_input("Enter CO2 (ppm):", min_value=0.0)
 
-        iec_result = evaluateIEC(C10, C11, C12, arr)
-        roger_result = evaluateRoger(C10a, C11a, C12a, C13a, arr)
-        #roger4_result = evaluateRoger4(C10a, C11a, C12a, C13a, arr)
-        c0c02_result = c0c02(dga_data["CO"], dga_data["CO2"], arr)
+        if st.button("Evaluate DGA"):
+            arr = [0, 0, 0, 0]
+            arr1 = [0, 0, 0, 0]
 
-        #pikachu_result = pikachu(arr, arr1)
-        #gas_analysis_result = GasAnalysis(pikachu_result)
+            result = evaluateDGA(dga_data, arr)
+            duval_result = duvalTriangle(dga_data, arr)
+            C10 = dga_data["CH4"] / dga_data["H2"] if dga_data["H2"] != 0 else 9999999
+            C11 = dga_data["C2H2"] / dga_data["H2"] if dga_data["H2"] != 0 else 9999999
+            C12 = dga_data["C2H2"] / dga_data["C2H6"] if dga_data["C2H6"] != 0 else 9999999
+            C10a = dga_data["CH4"] / dga_data["H2"] if dga_data["H2"] != 0 else 9999999
+            C11a = dga_data["C2H2"] / dga_data["H2"] if dga_data["H2"] != 0 else 9999999
+            C12a = dga_data["C2H2"] / dga_data["C2H6"] if dga_data["C2H6"] != 0 else 9999999
+            C13a = dga_data["C2H4"] / dga_data["C2H6"] if dga_data["C2H6"] != 0 else 9999999
 
-        st.write("Key Gas Result: ", result)
-        st.write("Duval Triangle Condition: ", duval_result)
-        st.write("IEC Condition: ", iec_result)
-        st.write("Roger Condition: ", roger_result)
-        #st.write("Roger4 Condition: ", roger4_result)
-        st.write("C0/CO2 Condition: ", c0c02_result)
-        #st.write("Gas Analysis Result: ", gas_analysis_result)
+            iec_result = evaluateIEC(C10, C11, C12, arr)
+            roger_result = evaluateRoger(C10a, C11a, C12a, C13a, arr)
+            c0c02_result = c0c02(dga_data["CO"], dga_data["CO2"], arr)
+
+            st.write("Key Gas Result: ", result)
+            st.write("Duval Triangle Condition: ", duval_result)
+            st.write("IEC Condition: ", iec_result)
+            st.write("Roger Condition: ", roger_result)
+            st.write("C0/CO2 Condition: ", c0c02_result)
+
+    elif analysis_type == "Upload CSV":
+        uploaded_file = st.file_uploader("Choose a file")
+        if uploaded_file is not None:
+            df, mapped_df = process_dga_file(uploaded_file)
+            if mapped_df is not None:
+                results = []
+                for index, row in mapped_df.iterrows():
+                    dga_data = row.to_dict()
+                    arr = [0, 0, 0, 0]
+                    arr1 = [0, 0, 0, 0]
+
+                    result = evaluateDGA(dga_data, arr)
+                    duval_result = duvalTriangle(dga_data, arr)
+                    C10 = dga_data["CH4"] / dga_data["H2"] if dga_data["H2"] != 0 else 9999999
+                    C11 = dga_data["C2H2"] / dga_data["H2"] if dga_data["H2"] != 0 else 9999999
+                    C12 = dga_data["C2H2"] / dga_data["C2H6"] if dga_data["C2H6"] != 0 else 9999999
+                    C10a = dga_data["CH4"] / dga_data["H2"] if dga_data["H2"] != 0 else 9999999
+                    C11a = dga_data["C2H2"] / dga_data["H2"] if dga_data["H2"] != 0 else 9999999
+                    C12a = dga_data["C2H2"] / dga_data["C2H6"] if dga_data["C2H6"] != 0 else 9999999
+                    C13a = dga_data["C2H4"] / dga_data["C2H6"] if dga_data["C2H6"] != 0 else 9999999
+
+                    iec_result = evaluateIEC(C10, C11, C12, arr)
+                    roger_result = evaluateRoger(C10a, C11a, C12a, C13a, arr)
+                    c0c02_result = c0c02(dga_data["CO"], dga_data["CO2"], arr)
+
+                    results.append({
+                        "Key Gas Result": result,
+                        "Duval Triangle Condition": duval_result,
+                        "IEC Condition": iec_result,
+                        "Roger Condition": roger_result,
+                        "C0/CO2 Condition": c0c02_result
+                    })
+                
+                results_df = pd.DataFrame(results)
+                combined_df = pd.concat([df, results_df], axis=1)
+                st.write(combined_df)
+
+                csv = combined_df.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="Download results as CSV",
+                    data=csv,
+                    file_name='dga_analysis_results.csv',
+                    mime='text/csv',
+                )
+            else:
+                st.error("The uploaded file does not contain the required columns: H2, CH4, C2H6, C2H4, C2H2, CO, CO2.")
+
 # Main Application
+
 
 
 
@@ -610,6 +778,7 @@ def add_custom_css():
                 background-size: cover;
                 background-repeat: no-repeat;
                 font-family: Arial, sans-serif;
+                color: #ffffff;
             }
             .login-header {
                 text-align: center;
@@ -700,16 +869,6 @@ def generate_captcha():
     num2 = random.randint(1, 10)
     return num1, num2, f"{num1} + {num2} = ?"
 
-
-
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
-def generate_captcha():
-    num1 = random.randint(1, 10)
-    num2 = random.randint(1, 10)
-    return num1, num2, f"{num1} + {num2} = ?"
-
 def login():
     add_custom_css()
 
@@ -722,35 +881,32 @@ def login():
     if "captcha_num1" not in st.session_state:
         st.session_state.captcha_num1, st.session_state.captcha_num2, st.session_state.captcha_text = generate_captcha()
 
-    captcha_answer = st.text_input("**"+st.session_state.captcha_text+"**", key="captcha", placeholder="Enter answer")
+    captcha_answer = st.text_input("**" + st.session_state.captcha_text + "**", key="captcha", placeholder="Enter answer")
 
     # Mock stored credentials
     stored_username = "Harsh"
     stored_password_hash = hash_password("pikachu")
 
     if st.button("**Login**", key="login", help="Click to login"):
-        if not captcha_answer:
-            st.error("Please enter the CAPTCHA answer.")
-        else:
-            try:
-                if int(captcha_answer) == (st.session_state.captcha_num1 + st.session_state.captcha_num2):
-                    if username == stored_username and hash_password(password) == stored_password_hash:
-                        st.session_state["logged_in"] = True
-                        st.success("Login successful")
+        with st.spinner("Processing..."):
+            if not captcha_answer:
+                st.error("Please enter the CAPTCHA answer.")
+            else:
+                try:
+                    if int(captcha_answer) == (st.session_state.captcha_num1 + st.session_state.captcha_num2):
+                        if username == stored_username and hash_password(password) == stored_password_hash:
+                            st.session_state["logged_in"] = True
+                            st.success("Login successful")
+                        else:
+                            st.error("Invalid username or password. Please try again.")
+                        # Refresh CAPTCHA
+                        st.session_state.captcha_num1, st.session_state.captcha_num2, st.session_state.captcha_text = generate_captcha()
                     else:
-                        st.error("Invalid username or password. Please try again.")
-                    # Refresh CAPTCHA
-                    st.session_state.captcha_num1, st.session_state.captcha_num2, st.session_state.captcha_text = generate_captcha()
-                else:
-                    st.error("Incorrect CAPTCHA. Please try again.")
-            except ValueError:
-                st.error("Invalid CAPTCHA format. Please enter a valid number.")
-
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+                        st.error("Incorrect CAPTCHA. Please try again.")
+                except ValueError:
+                    st.error("Invalid CAPTCHA format. Please enter a valid number.")
 
     st.markdown('<div class="login-footer">Created by Harsh Sukhwal</div>', unsafe_allow_html=True)
-
 
 
 def main():
@@ -761,9 +917,9 @@ def main():
         login()
     else:    
         pages = {
-            "Analysis and Prediction by ML Model": home_analysis,
-            "DGA Analysis": dga_analysis,
-            "Furan Value Prediction": furan_pred,
+            "Analysis & Prediction (ML Model)": home_analysis,
+            "Multiple DGA Test Analysis": dga_analysis,
+            "Age Prediction using Furan": furan_pred,
             "Transformer Health Index and Abnormality Detection": Health_index,
         }
         
@@ -784,8 +940,10 @@ def main():
                 This application provides tools for Transformer Health Index prediction and analysis, including:
                 - Data Visualization
                 - Model Training and Predictions
-                - Dissolved Gas Analysis (DGA)
-                - Furan Value Prediction
+                - Multiple Dissolved Gas Analysis (DGA) Test Results
+                - Age Prediction using Furan Value
+                - Health Index and Abnormality Detection
+                - And all of that in downloadable csv format
                 """
             )
 
