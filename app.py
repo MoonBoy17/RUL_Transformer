@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import random
 import hashlib
-
+import seaborn as sns
 
 st.set_page_config(page_title="Interactive Data Analysis", page_icon=":bar_chart:", layout="wide")
 
@@ -343,7 +343,7 @@ def c0c02(C0, CO2, arr):
         elif ratio >=3 and ratio <= 11:
             return "Normal"
     return "Invalid Input: Total concentration of gases cannot be zero."
-import seaborn as sns
+
 
 
 # Streamlit pages
@@ -374,7 +374,7 @@ def home_analysis():
         st.subheader("Pie Chart of Health Index Distribution")
         # Create bins for the Health Index ranges
         bins = [0, 70, 80, 90, 100]
-        labels = ['0-70', '70-80', '80-90', '90-100']
+        labels = ['0-30','30-50','50-85', '85-100']
         health_index_binned = pd.cut(data['Health Indx'], bins=bins, labels=labels, right=False)
         health_index_distribution = health_index_binned.value_counts().sort_index()
 
@@ -888,7 +888,7 @@ def login():
 
     # Mock stored credentials
     stored_username = "Harsh"
-    stored_password_hash = hash_password("pikachu")
+    stored_password_hash = hash_password("summerintern24")
 
     if st.button("**Login**", key="login", help="Click to login"):
         with st.spinner("Processing..."):
@@ -912,6 +912,98 @@ def login():
     st.markdown('<div class="login-footer">Created by Harsh Sukhwal</div>', unsafe_allow_html=True)
 
 
+def abnormality_detection():
+    st.title("Abnormality Detection in Data")
+
+    entry_mode = st.radio("Select Data Entry Mode", ("Manual Entry", "CSV File Upload"))
+
+    def plot_with_zones(dates, values):
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.plot(dates, values, marker='o')
+        ax.set_xlabel("Date")
+        ax.set_ylabel("Furan Value (ppb)")
+
+        # Zone definitions
+        zones = [
+            (0, 654, 'Normal Aging Rate', 'green'),
+            (654, 1464, 'Accelerated Aging Rate', 'yellow'),
+            (1464, 2374, 'Excessive Aging Danger Zone', 'orange'),
+            (2374, 4524, 'High Risk of Failure', 'crimson'),
+            (4524, 8000, 'End of expected life of paper insulation and of the transformer', 'red')
+        ]
+
+        for lower, upper, label, color in zones:
+            ax.axhspan(lower, upper, alpha=0.3, color=color, label=label)
+        
+        # Check for abnormality in slope
+        for i in range(1, len(values)):
+            delta_value = values[i] - values[i-1]
+            delta_date = (dates[i] - dates[i-1]).days
+            slope = delta_value / delta_date if delta_date != 0 else np.nan
+
+            if (slope) > 5:
+                st.error(f"Abnormality detected: Slope {slope:.2f} between {dates[i-1]} and {dates[i]}")
+            elif (slope) < 0:
+                st.success(f"Possible overhauling between {dates[i-1]} and {dates[i]}")
+                
+
+
+        # Predict when it will reach 8000 value
+        if len(values) >= 2:
+            last_slope = (values[-1] - values[-2]) / ((dates[-1] - dates[-2]).days)
+            days_to_8000 = (8000 - values[-1]) / last_slope if last_slope != 0 else np.nan
+            if days_to_8000 > 0:
+                predicted_date_8000 = dates[-1] + pd.Timedelta(days=days_to_8000)
+                st.divider()
+                st.warning(f"Predicted date to reach 8000 Furan value: {predicted_date_8000.date()}")
+                st.divider()
+            else:
+                st.divider()
+                st.warning("The trend does not indicate reaching 8000 Furan value in the future.")
+                st.divider()
+
+        ax.legend()
+        st.pyplot(fig)
+
+    if entry_mode == "CSV File Upload":
+        uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
+
+        if uploaded_file is not None:
+            data = pd.read_csv(uploaded_file)
+            st.write("Here is your dataset:")
+            st.write(data)
+
+            row_num = st.number_input("Enter the Row Number to Analyze", min_value=0, max_value=len(data)-1, step=1)
+            selected_row = data.iloc[row_num]
+
+
+            dates = [col for col in data.columns if "date" in col.lower()]
+            values = [col for col in data.columns if "value" in col.lower()]
+
+            date_values = []
+            for date_col, value_col in zip(dates, values):
+                date_values.append((pd.to_datetime(selected_row[date_col], dayfirst=True), selected_row[value_col]))
+
+            date_values.sort()  # Sort by date
+            sorted_dates, sorted_values = zip(*date_values)
+
+            plot_with_zones(sorted_dates, sorted_values)
+
+    elif entry_mode == "Manual Entry":
+        dates = []
+        values = []
+        num_pairs = st.number_input("Enter the number of date-value pairs", min_value=1, value=1, step=1)
+
+        for i in range(num_pairs):
+            date = st.date_input(f"Enter Date {i+1}")
+            value = st.number_input(f"Enter Value {i+1}", value=0.0)
+            dates.append(date)
+            values.append(value)
+
+        if st.button("Plot Data"):
+            plot_with_zones(dates, values)
+
+
 def main():
     if "logged_in" not in st.session_state:
         st.session_state["logged_in"] = False
@@ -920,10 +1012,11 @@ def main():
         login()
     else:    
         pages = {
-            "Analysis & Prediction (ML Model)": home_analysis,
+            "ML-Powered Analysis & Prediction": home_analysis,
             "Multiple DGA Test Analysis": dga_analysis,
+            "Transformer Health & Abnormality Detection": Health_index,
             "Age Prediction using Furan": furan_pred,
-            "Transformer Health Index and Abnormality Detection": Health_index,
+            "Furan-Based Abnormality Detection (Over Time)": abnormality_detection,
         }
         
         st.sidebar.title("Transformer Remaining Useful Life Prediction")
