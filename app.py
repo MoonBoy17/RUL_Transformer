@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import random
 import hashlib
+import streamlit.components.v1 as components
 import seaborn as sns
 
 st.set_page_config(page_title="Interactive Data Analysis", page_icon=":bar_chart:", layout="wide")
@@ -344,8 +345,6 @@ def c0c02(C0, CO2, arr):
             return "Normal"
     return "Invalid Input: Total concentration of gases cannot be zero."
 
-
-
 # Streamlit pages
 def home_analysis():
     st.title("Transformer RUL Prediction")
@@ -522,7 +521,6 @@ def home_analysis():
 def interpolate(x1, y1, x2, y2, x):
     return y1 + ((y2 - y1) / (x2 - x1)) * (x - x1)
 
-
 def interpolateData(table, fal_ppb):
     # Interpolation logic goes here
     for i in range(len(table)-1):
@@ -627,8 +625,6 @@ def furan_pred():
                 )
             else:
                 st.error("The uploaded file does not contain the required column: fal_ppb.")
-
-
 
 def map_column_names(df):
     column_mapping = {
@@ -767,17 +763,13 @@ def dga_analysis():
                 st.error("The uploaded file does not contain the required columns: H2, CH4, C2H6, C2H4, C2H2, CO, CO2.")
 
 # Main Application
-
-
-
-
 def add_custom_css():
     st.markdown("""
         <style>
             body {
                 margin: 0;
                 padding: 0;
-                background-image: url('https://www.yourbackgroundimageurl.com');
+                background-image: components.html(particles_js, height=500, scrolling=False));
                 background-size: cover;
                 background-repeat: no-repeat;
                 font-family: Arial, sans-serif;
@@ -863,7 +855,6 @@ def add_custom_css():
         </style>
     """, unsafe_allow_html=True)
 
-
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -911,13 +902,12 @@ def login():
 
     st.markdown('<div class="login-footer">Created by Harsh Sukhwal</div>', unsafe_allow_html=True)
 
-
 def abnormality_detection():
     st.title("Abnormality Detection in Data")
 
     entry_mode = st.radio("Select Data Entry Mode", ("Manual Entry", "CSV File Upload"))
 
-    def plot_with_zones(dates, values):
+    def plot_with_zones(dates, values, vendors):
         fig, ax = plt.subplots(figsize=(10, 5))
         ax.plot(dates, values, marker='o')
         ax.set_xlabel("Date")
@@ -935,31 +925,33 @@ def abnormality_detection():
         for lower, upper, label, color in zones:
             ax.axhspan(lower, upper, alpha=0.3, color=color, label=label)
         
-        # Check for abnormality in slope
+        # Check for abnormality in slope and vendor change
         for i in range(1, len(values)):
             delta_value = values[i] - values[i-1]
             delta_date = (dates[i] - dates[i-1]).days
             slope = delta_value / delta_date if delta_date != 0 else np.nan
 
-            if (slope) > 5:
-                st.error(f"Abnormality detected: Slope {slope:.2f} between {dates[i-1]} and {dates[i]}")
-            elif (slope) < 0:
-                st.success(f"Possible overhauling between {dates[i-1]} and {dates[i]}")
-                
-
+            if slope > 5:
+                st.error(f"Abnormality detected: Slope {slope:.2f} between {dates[i-1]} and {dates[i]}", icon="⚠️")
+            elif slope < 0:
+                change_percent = abs(delta_value / values[i-1]) * 100
+                if change_percent > 20 and vendors[i] != vendors[i-1]:
+                    st.warning(f"Possible overhauling but vendor changed recommended to take one more reading: Change {change_percent:.2f}% between {dates[i-1]} and {dates[i]} with vendor change from {vendors[i-1]} to {vendors[i]}", icon="⚠️")
+                else:
+                    st.success(f"Possible overhauling between {dates[i-1]} and {dates[i]}", icon="✅")
 
         # Predict when it will reach 8000 value
         if len(values) >= 2:
             last_slope = (values[-1] - values[-2]) / ((dates[-1] - dates[-2]).days)
-            days_to_8000 = (8000 - values[-1]) / last_slope if last_slope != 0 else np.nan
+            days_to_8000 = (8000 - values[-1]) / last_slope 
             if days_to_8000 > 0:
                 predicted_date_8000 = dates[-1] + pd.Timedelta(days=days_to_8000)
                 st.divider()
-                st.warning(f"Predicted date to reach 8000 Furan value: {predicted_date_8000.date()}")
+                st.info(f"Predicted date to reach 8000 Furan value: {predicted_date_8000}", icon="📉")
                 st.divider()
             else:
                 st.divider()
-                st.warning("The trend does not indicate reaching 8000 Furan value in the future.")
+                st.info("The trend does not indicate reaching 8000 Furan value in the future.", icon="📉")
                 st.divider()
 
         ax.legend()
@@ -976,35 +968,1329 @@ def abnormality_detection():
             row_num = st.number_input("Enter the Row Number to Analyze", min_value=0, max_value=len(data)-1, step=1)
             selected_row = data.iloc[row_num]
 
-
             dates = [col for col in data.columns if "date" in col.lower()]
             values = [col for col in data.columns if "value" in col.lower()]
+            vendors = [col for col in data.columns if "vendor" in col.lower()]
 
-            date_values = []
-            for date_col, value_col in zip(dates, values):
-                date_values.append((pd.to_datetime(selected_row[date_col], dayfirst=True), selected_row[value_col]))
+            date_values_vendors = []
+            for date_col, value_col, vendor_col in zip(dates, values, vendors):
+                date_values_vendors.append((pd.to_datetime(selected_row[date_col], dayfirst=True), selected_row[value_col], selected_row[vendor_col]))
 
-            date_values.sort()  # Sort by date
-            sorted_dates, sorted_values = zip(*date_values)
+            date_values_vendors.sort()  # Sort by date
+            sorted_dates, sorted_values, sorted_vendors = zip(*date_values_vendors)
 
-            plot_with_zones(sorted_dates, sorted_values)
+            plot_with_zones(sorted_dates, sorted_values, sorted_vendors)
 
     elif entry_mode == "Manual Entry":
         dates = []
         values = []
+        vendors = []
         num_pairs = st.number_input("Enter the number of date-value pairs", min_value=1, value=1, step=1)
 
         for i in range(num_pairs):
             date = st.date_input(f"Enter Date {i+1}")
             value = st.number_input(f"Enter Value {i+1}", value=0.0)
+            vendor = st.text_input(f"Enter Vendor {i+1}")
             dates.append(date)
             values.append(value)
+            vendors.append(vendor)
 
         if st.button("Plot Data"):
-            plot_with_zones(dates, values)
+            plot_with_zones(dates, values, vendors)
+if "show_animation" not in st.session_state:
+    st.session_state.show_animation = True  # or True, depending on your default preference
+
+def add_particles_background():
+    particles_js = """<!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Particles.js</title>
+      <style>
+      #particles-js {
+        position: fixed;
+        width: 100vw;
+        height: 100vh;
+        top: 0;
+        left: 0;
+        z-index: -1; /* Send the animation to the back */
+      }
+      .content {
+        position: relative;
+        z-index: 1;
+        color: white;
+      }
+      
+    </style>
+    </head>
+    <body>
+      <div id="particles-js"></div>
+      <div class="content">
+        <!-- Placeholder for Streamlit content -->
+      </div>
+      <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+      <script>
+        particlesJS("particles-js", {
+          "particles": {
+            "number": {
+              "value": 300,
+              "density": {
+                "enable": true,
+                "value_area": 800
+              }
+            },
+            "color": {
+              "value": "#ffffff"
+            },
+            "shape": {
+              "type": "circle",
+              "stroke": {
+                "width": 0,
+                "color": "#000000"
+              },
+              "polygon": {
+                "nb_sides": 5
+              },
+              "image": {
+                "src": "img/github.svg",
+                "width": 100,
+                "height": 100
+              }
+            },
+            "opacity": {
+              "value": 0.5,
+              "random": false,
+              "anim": {
+                "enable": false,
+                "speed": 1,
+                "opacity_min": 0.2,
+                "sync": false
+              }
+            },
+            "size": {
+              "value": 2,
+              "random": true,
+              "anim": {
+                "enable": false,
+                "speed": 40,
+                "size_min": 0.1,
+                "sync": false
+              }
+            },
+            "line_linked": {
+              "enable": true,
+              "distance": 100,
+              "color": "#ffffff",
+              "opacity": 0.22,
+              "width": 1
+            },
+            "move": {
+              "enable": true,
+              "speed": 0.2,
+              "direction": "none",
+              "random": false,
+              "straight": false,
+              "out_mode": "out",
+              "bounce": true,
+              "attract": {
+                "enable": false,
+                "rotateX": 600,
+                "rotateY": 1200
+              }
+            }
+          },
+          "interactivity": {
+            "detect_on": "canvas",
+            "events": {
+              "onhover": {
+                "enable": true,
+                "mode": "grab"
+              },
+              "onclick": {
+                "enable": true,
+                "mode": "repulse"
+              },
+              "resize": true
+            },
+            "modes": {
+              "grab": {
+                "distance": 100,
+                "line_linked": {
+                  "opacity": 1
+                }
+              },
+              "bubble": {
+                "distance": 400,
+                "size": 2,
+                "duration": 2,
+                "opacity": 0.5,
+                "speed": 1
+              },
+              "repulse": {
+                "distance": 200,
+                "duration": 0.4
+              },
+              "push": {
+                "particles_nb": 2
+              },
+              "remove": {
+                "particles_nb": 3
+              }
+            }
+          },
+          "retina_detect": true
+        });
+      </script>
+    </body>
+    </html>
+    """
+    components.html(particles_js, height=350, scrolling=False)
+
+
+
+def display_duval_triangle_page():
+
+    html_code = """
+    <html>
+        <head>
+            <style>
+                body {
+                    background-color: white;
+                    padding: 10px;
+                    margin: 0px;
+                    font-family: Arial, sans-serif;
+                }
+
+                #canvas {
+                    display: block;
+                    margin-left: auto;
+                    margin-right: auto;
+                }
+
+                 div.inputs {
+            text-align: left;
+            padding: 20px;
+            border: 4px solid black;
+            display: inline-block;
+            background-color: #f9f9f9;
+            margin-left: 20px;
+            vertical-align: top;
+            border-radius: 10px;
+        }
+
+        .inputs label {
+            display: inline-block;
+            width: 80px;
+            font-weight: bold;
+        }
+
+        .inputs input {
+            padding: 5px;
+            margin-bottom: 10px;
+            width: 150px;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+        }
+
+        #bt1 {
+            background-color: rgb(67, 10, 143);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin-top: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        #head1 {
+            color: white;
+            text-align: center;
+            background-color: #101D6B;
+            font-size: 26px;
+            padding: 15px;
+            border-radius: 85px;
+        }
+
+        #result {
+            text-align: center;
+            font-size: 18px;
+            margin-top: 20px;
+            color: black;
+            font-weight: bold;
+        }
+
+        #result-box {
+    border: 2px solid #007BFF; /* Blue border */
+    padding: 15px;
+    margin-top: 20px;
+    background-color: #f1f9ff; /* Light blue background */
+    border-radius: 10px;
+    font-family: Arial, sans-serif;
+    color: #333;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+#result-box h3 {
+    margin: 0 0 10px 0;
+    font-size: 24px;
+    color: #007BFF; /* Blue text for the title */
+}
+
+#result-box p {
+    margin: 5px 0;
+    font-size: 16px;
+}
+            </style>
+        </head>
+        <body>
+    <h3 id="head1">Enter the values for the gas analysis</h3>
+    <div class="inputs">
+        <div style="margin:0 0 10px 0;">
+            <label>CH4 = </label><input  type="text" id="ch4" name="value1" value=""/> <label>ppm </label><br/>
+        </div>
+        <div style="margin:0 0 10px 0;">
+            <label>C2H2 = </label><input type="text" id="c2h2" name="value2" value=""/> <label>ppm </label><br/>
+        </div>
+        <div>
+            <label>C2H4 = </label><input type="text" id="c2h4" name="value3" value=""/> <label>ppm </label><br/>
+        </div>
+        <div>
+            <button id="bt1" onClick="calcOpr()">Locate</button>
+        </div>
+    </div>
+    <canvas id="canvas" width="650" height="580" class="canvas"></canvas>
+    <div id="result"></div>
+            <script>
+                var canvas = document.getElementById("canvas");
+                var ctx = canvas.getContext("2d");
+
+                var pointSize = 4.5;
+                var v0 = { x: 114, y: 366 };
+                var v1 = { x: 306, y: 30 };
+                var v2 = { x: 498, y: 366 };
+                var triangle = [v0, v1, v2];
+
+                ctx.font = '14px arial black';
+                ctx.fillText("Duval's Triangle DGA", 220, 10, 300);
+
+                var colors = {
+                    PD: 'black',
+                    T1: 'navajoWhite',
+                    T2: 'tan',
+                    T3: 'peru',
+                    D1: 'rgb(172,236,222)',
+                    D2: 'deepskyblue',
+                    DT: 'lightCyan'
+                };
+
+                var legend = [
+                    { label: 'PD = Partial Discharge', color: colors.PD, x: 0, y: 454 },
+                    { label: 'T1 = Thermal fault < 300 celcius', color: colors.T1, x: 0, y: 469 },
+                    { label: 'T2 = Thermal fault 300 < T < 700 celcius', color: colors.T2, x: 0, y: 484 },
+                    { label: 'T3 = Thermal fault < 300 celcius', color: colors.T3, x: 0, y: 499 },
+                    { label: 'D1 = Thermal fault T > 700 celcius', color: colors.D1, x: 0, y: 514 },
+                    { label: 'D2 = Discharge of High Energy', color: colors.D2, x: 0, y: 529 },
+                    { label: 'DT = Electrical and Thermal', color: colors.DT, x: 0, y: 544 }
+                ];
+
+                legend.forEach(item => {
+                    ctx.fillStyle = item.color;
+                    ctx.fillRect(item.x, item.y, 20, 10);
+                    ctx.fillStyle = 'black';
+                    ctx.fillText(item.label, item.x + 30, item.y + 10);
+                });
+
+
+
+                var segments = [
+                    { points: [v0, { x: 281, y: 76 }, { x: 324, y: 150 }, { x: 201, y: 366 }], fill: colors.D1, label: 'D1', labelPos: { x: 165, y: 395 } },
+                    { points: [{ x: 385, y: 366 }, { x: 201, y: 366 }, { x: 324, y: 150 }, { x: 356, y: 204 }, { x: 321, y: 256 }], fill: colors.D2, label: 'D2', labelPos: { x: 300, y: 395 } },
+                    { points: [{ x: 297, y: 46 }, { x: 392, y: 214 }, { x: 372, y: 248 }, { x: 441, y: 366 }, { x: 385, y: 366 }, { x: 321, y: 256 }, { x: 356, y: 204 }, { x: 281, y: 76 }], fill: colors.DT, label: 'DT', labelPos: { x: 400, y: 60 }, labelLine: { x: 300, y: 50 }  },
+                    { points: [{ x: 306, y: 30 }, { x: 312, y: 40 }, { x: 300, y: 40 }], fill: colors.PD, label: 'PD', labelPos: { x: 356, y: 40 }, labelLine: { x: 321, y: 40 } },
+                    { points: [{ x: 312, y: 40 }, { x: 348, y: 103 }, { x: 337, y: 115 }, { x: 297, y: 46 }, { x: 300, y: 40 }], fill: colors.T1, label: 'T1', labelPos: { x: 375, y: 90 }, labelLine: { x: 340, y: 75 } },
+                    { points: [{ x: 348, y: 103 }, { x: 402, y: 199 }, { x: 392, y: 214 }, { x: 337, y: 115 }], fill: colors.T2, label: 'T2', labelPos: { x: 400, y: 135 }, labelLine: { x: 366, y: 120 } },
+                    { points: [{ x: 402, y: 199 }, { x: 498, y: 366 }, { x: 441, y: 366 }, { x: 372, y: 248 }], fill: colors.T3, label: 'T3', labelPos: { x: 480, y: 285 }, labelLine: { x: 450, y: 270 } },
+                    { points: [v0, { x: 281, y: 76 }, { x: 324, y: 150 }, { x: 201, y: 366 }], fill: colors.D1, label: 'Methane', labelPos: { x: 105, y: 200 } },
+                    { points: [v0, { x: 281, y: 76 }, { x: 324, y: 150 }, { x: 201, y: 366 }], fill: colors.D1, label: 'Ethylene', labelPos: { x: 455, y: 200 } },
+                    { points: [v0, { x: 281, y: 76 }, { x: 324, y: 150 }, { x: 201, y: 366 }], fill: colors.D1, label: 'Acetylene', labelPos: { x: 280, y: 420 } },
+                
+                ];
+
+
+                
+                segments.forEach(segment => {
+                    ctx.beginPath();
+                    ctx.moveTo(segment.points[0].x, segment.points[0].y);
+                    for (var i = 1; i < segment.points.length; i++) {
+                        var point = segment.points[i];
+                        ctx.lineTo(point.x, point.y);
+                    }
+                    ctx.closePath();
+                    ctx.fillStyle = segment.fill;
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.fillStyle = 'black';
+                    ctx.fillText(segment.label, segment.labelPos.x, segment.labelPos.y);
+                    if (segment.labelLine) {
+                        ctx.beginPath();
+                        ctx.moveTo(segment.labelPos.x, segment.labelPos.y-4);
+                        ctx.lineTo(segment.labelLine.x, segment.labelLine.y+10);
+                        ctx.stroke();
+                    }
+                });
+
+                ctx.beginPath();
+                ctx.strokeStyle = 'Balck';
+                ctx.moveTo(v0.x, v0.y);
+                ctx.lineTo(v1.x, v1.y);
+                ctx.lineTo(v2.x, v2.y);
+                ctx.lineTo(v0.x, v0.y);
+                ctx.stroke();
+                ctx.fillStyle = 'colors.D1';
+                ctx.font = '12pt bold';
+                ctx.fillText("100% C2H2", 440, 390);
+                ctx.fillText("100% CH4", 230, 30);
+                ctx.fillText("100% C2H4", 40, 390);
+
+                function calcOpr() {
+    var ch4 = parseFloat(document.getElementById("ch4").value) || 0;
+    var c2h2 = parseFloat(document.getElementById("c2h2").value) || 0;
+    var c2h4 = parseFloat(document.getElementById("c2h4").value) || 0;
+    var total = ch4 + c2h2 + c2h4;
+
+    var ch4Pct = (ch4 / total) * 100;
+    var c2h2Pct = (c2h2 / total) * 100;
+    var c2h4Pct = (c2h4 / total) * 100;
+
+    var b = (c2h2Pct / 100) * 306 + ((100 - c2h2Pct) / 100) * 498;
+    var a = (c2h2Pct / 100) * 30 + ((100 - c2h2Pct) / 100) * 366;
+    var px = (ch4Pct / 100) * 114 + ((100 - ch4Pct) / 100) * b;
+    var py = (ch4Pct / 100) * 366 + ((100 - ch4Pct) / 100) * a;
+
+    ctx.fillStyle = 'red';
+    ctx.beginPath();
+    ctx.arc(px, py, pointSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    var diagnosis = "";
+    var resultColors = Object.values(colors);
+    var pixelData = ctx.getImageData(px, py, 1, 1).data;
+    var hexColor = "#" + ((1 << 24) + (pixelData[0] << 16) + (pixelData[1] << 8) + pixelData[2]).toString(16).slice(1).toUpperCase();
+
+    for (var key in colors) {
+        if (colors[key] === hexColor) {
+            diagnosis = key;
+            break;
+        }
+    }
+
+    var zone = getDiagnosisResult(ch4Pct, c2h2Pct, c2h4Pct);
+
+     document.getElementById("result").innerHTML = `
+        <h3>Diagnosis Result</h3>
+        <p><strong>${zone}</strong></p>
+        <p>CH4: ${ch4Pct.toFixed(2)}%, C2H2: ${c2h2Pct.toFixed(2)}%, C2H4: ${c2h4Pct.toFixed(2)}%</p>`;
+}
+
+                function drawDot(ch4x, ch4y, c2h2x, c2h2y, c2h4x, c2h4y) {
+                    var x = (ch4x + c2h2x + c2h4x) / 3;
+                    var y = (ch4y + c2h2y + c2h4y) / 3;
+                    ctx.fillStyle = "#ff2626";
+                    ctx.beginPath();
+                    ctx.arc(x, y, pointSize, 0, Math.PI * 2, true);
+                    ctx.fill();
+                }
+
+                ticklines(v0,v1,9,0,20);
+                ticklines(v1,v2,9,Math.PI*3/4,20);
+                ticklines(v2,v0,9,Math.PI*5/4,20);
+                
+
+                function moleculeLabel(start,end,offsetLength,angle,text){
+                ctx.textAlign='center';
+                ctx.textBaseline='middle'
+                ctx.font='14px verdana';
+                var dx=end.x-start.x;
+                var dy=end.y-start.y;
+                var x0=parseInt(start.x+dx*0.50);
+                var y0=parseInt(start.y+dy*0.50);
+                var x1=parseInt(x0+offsetLength*Math.cos(angle));
+                var y1=parseInt(y0+offsetLength*Math.sin(angle));
+                ctx.fillStyle='black';
+                ctx.fillText(text,x1,y1);
+                // arrow
+                var x0=parseInt(start.x+dx*0.35);
+                var y0=parseInt(start.y+dy*0.35);
+                var x1=parseInt(x0+50*Math.cos(angle));
+                var y1=parseInt(y0+50*Math.sin(angle));
+                var x2=parseInt(start.x+dx*0.65);
+                var y2=parseInt(start.y+dy*0.65);
+                var x3=parseInt(x2+50*Math.cos(angle));
+                var y3=parseInt(y2+50*Math.sin(angle));
+                ctx.beginPath();
+                ctx.moveTo(x1,y1);
+                ctx.lineTo(x3,y3);
+                ctx.strokeStyle='black';
+                ctx.lineWidth=1;
+                ctx.stroke();
+                var angle=Math.atan2(dy,dx);
+                ctx.translate(x3,y3);
+                ctx.rotate(angle);
+                ctx.drawImage(arrowhead,-arrowheadLength,-arrowheadWidth/2);
+                ctx.setTransform(1,0,0,1,0,0);
+                }
+
+                function ticklines(start,end,count,angle,length){
+                var dx=end.x-start.x;
+                var dy=end.y-start.y;
+                ctx.lineWidth=2;
+                for(var i=1;i<count;i++){
+                    var x0=parseInt(start.x+dx*i/count);
+                    var y0=parseInt(start.y+dy*i/count);
+                    var x1=parseInt(x0+length*Math.cos(angle));
+                    var y1=parseInt(y0+length*Math.sin(angle));
+                    ctx.beginPath();
+                    ctx.moveTo(x0,y0);
+                    ctx.lineTo(x1,y1);
+                    ctx.stroke();
+                    if(i==2 || i==4 || i==6 || i==8){
+                    var labelOffset=length*3/4;
+                    var x1=parseInt(x0-labelOffset*Math.cos(angle));
+                    var y1=parseInt(y0-labelOffset*Math.sin(angle));
+                    ctx.fillStyle='black';
+                    ctx.font='14px verdana';
+                    ctx.fillText(parseInt(i*10),x1,y1);
+                    }
+                }
+                }
+
+                function getDiagnosisResult(ch4Percentage, c2h2Percentage, c2h4Percentage) {
+                var result = "";
+                if (ch4Percentage < 5 && c2h2Percentage < 25 && c2h4Percentage > 20) {
+                    result = "PD = Partial Discharge";
+                } else if (ch4Percentage > 6 && c2h2Percentage < 12 && c2h4Percentage < 14) {
+                    result = "T1 = Thermal fault < 300 celcius";
+                } else if (ch4Percentage > 12 && c2h2Percentage < 23 && c2h4Percentage < 40) {
+                    result = "T2 = Thermal fault 300 < T < 700 celcius";
+                } else if (ch4Percentage > 30 && c2h2Percentage < 22 && c2h4Percentage < 50) {
+                    result = "T3 = Thermal fault < 300 celcius";
+                } else if (ch4Percentage < 30 && c2h2Percentage < 40 && c2h4Percentage > 35) {
+                    result = "D1 = Thermal fault T > 700 celcius";
+                } else if (ch4Percentage < 50 && c2h2Percentage > 23 && c2h4Percentage < 55) {
+                    result = "D2 = Discharge of High Energy";
+                } else if (ch4Percentage < 80 && c2h2Percentage > 60 && c2h4Percentage < 70) {
+                    result = "DT = Electrical and Thermal";
+                } else {
+                    result = "Undefined";
+                }
+                return result;
+            }
+
+            </script>
+        </body>
+    </html>
+    """
+
+    components.html(html_code, height=1100)
+
+
+html_content = """
+
+<html>
+    <head>
+        <link rel="stylesheet" type="text/css" href="mysheet.css"/>
+    </head>
+    <body>
+             <canvas id="canvas" width=650 height=580 class="canvas"></canvas>
+             <div class="inputs">
+                <h3 id="head1">  Give the inputs for the gases</h3>
+                <div style="margin:0 0 0px 0;">
+                    <label>CH4 = </label><input type="text" id="ch4" name="value1" value=""/> <label>ppm </label><br/>
+                    </div>
+                <div style="margin:0 0 0px 0;">
+                   <label>C2H2 = </label><input type="text" id="c2h2" name="value2" value=""/> <label>ppm </label><br/>
+                    </div>
+                <div>
+                    <label>C2H4 = </label><input type="text" id="c2h4" name="value3" value=""/> <label>ppm </label><br/>
+                    </div>
+                <div>
+                    <button id="bt1" onClick="calcOpr()"> Analyse </button>
+                    </div>
+            </div>
+            <script src=duval.js></script>
+            
+    </body>
+</html>
+"""
+
+# Your CSS code
+css_content = """
+
+    body {
+        background-color: rgb(249, 251, 252);
+        padding: 10px;
+        margin: 0px;
+        font-family: Arial, sans-serif;
+    }
+
+    #canvas {
+
+        margin-left: 350px;
+    }
+
+    .inputs {
+        position: absolute;
+        top: 150px;
+        left: 10px;
+        padding: 5px;
+        border: 4px solid black;
+        background-color: #f9f9f9;
+        border-radius: 10px;
+        
+    }
+
+    .inputs label {
+        display: inline-block;
+        width: 80px;
+        left: 50px;
+        font-weight: bold;
+        margin: 0px 0px 0px 15px;
+    }
+
+    .inputs input {
+        padding: 5px;
+        margin-bottom: 10px;
+        width: 150px;
+        border: 2px solid #ccc;
+        border-radius: 5px;
+    }
+
+    #bt1 {
+        background-color: #031273;
+        border: none;
+        color: white;
+        padding: 10px 22px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        margin: 10px 0px 0px 5px;
+        cursor: pointer;
+        border-radius: 5px;
+    }
+
+    #head1 {
+        color: #f2f4f7;
+        text-align: center;
+        background-color: #031273;
+        font-size: 18px;
+        padding: 15px;
+        border-radius: 5px;
+    }
+
+    #result {
+        text-align: center;
+        font-size: 18px;
+        margin-top: 20px;
+        color: black;
+        font-weight: bold;
+    }
+
+    #result-box {
+        border: 2px solid royalblue;
+        padding: 10px;
+        margin-top: 20px;
+        background-color: royalblue;
+        border-radius: 10px; /* Increased border radius for a smoother look */
+        font-family: Arial, sans-serif;
+        color: #fff;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        max-width: 400px; /* Limiting the maximum width */
+        margin-left: auto; /* Centering horizontally */
+        margin-right: auto;
+    }
+
+    #result-box h3 {
+        margin: 0 0 10px 0;
+        font-size: 24px;
+        color: #fff;
+    }
+
+    #result-box p {
+        margin: 5px 0;
+        font-size: 16px;
+    }
+
+"""
+
+# Your JS code
+js_content = """
+var canvas = document.getElementById("canvas");
+var ctx = canvas.getContext("2d");
+
+// https://www.researchgate.net/publication/4345236_A_Software_Implementation_of_the_Duval_Triangle_Method
+//To vary the point size of Dot
+var pointSize = 4.5;
+
+var v0 = {
+  x: 114,
+  y: 366
+};
+var v1 = {
+  x: 306,
+  y: 30
+};
+var v2 = {
+  x: 498,
+  y: 366
+};
+var triangle = [v0, v1, v2];
+//Legends color
+ctx.font = '14px arial black';
+ctx.fillText("Duval's Triangle DGA", 220, 20, 300);
+//PD
+ctx.fillStyle = 'rgb(255,0,0)';
+ctx.fillRect(50, 454, 20, 10);
+//T1
+ctx.fillStyle = 'rgb(255,102,153)';
+ctx.fillRect(50, 469, 20, 10);
+//T2
+ctx.fillStyle = 'rgb(255,204,0)';
+ctx.fillRect(50, 484, 20, 10);
+//T3
+ctx.fillStyle = 'rgb(0,0,0)';
+ctx.fillRect(50, 499, 20, 10);
+//D1
+ctx.fillStyle = 'rgb(172,236,222)';
+ctx.fillRect(50, 514, 20, 10);
+//D2
+ctx.fillStyle = 'rgb(51,51,153)';
+ctx.fillRect(50, 529, 20, 10);
+//DT
+ctx.fillStyle = 'rgb(153,0,153)';
+ctx.fillRect(50, 544, 20, 10);
+ctx.fillStyle="black";
+ctx.fillText("Diagnosis Result:",350,538,300);
+//TextFields for Gases:
+var ch4x, ch4y, c2h4x, c2h4y, c2h2x, c2h2y;
+// Define all your segments here
+var segments = [{
+  points: [{
+    x: 114,
+    y: 366
+  }, {
+    x: 281,
+    y: 76
+  }, {
+    x: 324,
+    y: 150
+  }, {
+    x: 201,
+    y: 366
+  }],
+  fill: 'rgb(172,236,222)',
+  label: {
+    text: 'D1',
+    cx: 165,
+    cy: 395,
+    withLine: false,
+    endX: null,
+    endY: null
+  },
+},
+{
+  points: [{
+    x: 385,
+    y: 366
+  }, {
+    x: 201,
+    y: 366
+  }, {
+    x: 324,
+    y: 150
+  }, {
+    x: 356,
+    y: 204
+  }, {
+    x: 321,
+    y: 256
+  }],
+  fill: 'rgb(51,51,153)',
+  label: {
+    text: 'D2',
+    cx: 300,
+    cy: 395,
+    withLine: false,
+    endX: null,
+    endY: null
+  },
+},
+{
+  points: [{
+    x: 297,
+    y: 46
+  }, {
+    x: 392,
+    y: 214
+  }, {
+    x: 372,
+    y: 248
+  }, {
+    x: 441,
+    y: 366
+  }, {
+    x: 385,
+    y: 366
+  }, {
+    x: 321,
+    y: 256
+  }, {
+    x: 356,
+    y: 204
+  }, {
+    x: 281,
+    y: 76
+  }],
+  fill: 'rgb(153,0,153)',
+  label: {
+    text: 'DT',
+    cx: 245,
+    cy: 60,
+    withLine: true,
+    endX: 280,
+    endY: 55
+  },
+},
+{
+  points: [{
+    x: 306,
+    y: 30
+  }, {
+    x: 312,
+    y: 40
+  }, {
+    x: 300,
+    y: 40
+  }],
+  fill: 'rgb(255,0,0)',
+  label: {
+    text: 'PD',
+    cx: 356,
+    cy: 40,
+    withLine: true,
+    endX: 321,
+    endY: 40
+  },
+},
+{
+  points: [{
+    x: 312,
+    y: 40
+  }, {
+    x: 348,
+    y: 103
+  }, {
+    x: 337,
+    y: 115
+  }, {
+    x: 297,
+    y: 46
+  }, {
+    x: 300,
+    y: 40
+  }],
+  fill: 'rgb(255,153,153)',
+  label: {
+    text: 'T1',
+    cx: 375,
+    cy: 70,
+    withLine: true,
+    endX: 340,
+    endY: 75
+  },
+},
+{
+  points: [{
+    x: 348,
+    y: 103
+  }, {
+    x: 402,
+    y: 199
+  }, {
+    x: 392,
+    y: 214
+  }, {
+    x: 337,
+    y: 115
+  }],
+  fill: 'rgb(255,204,0)',
+  label: {
+    text: 'T2',
+    cx: 400,
+    cy: 125,
+    withLine: true,
+    endX: 366,
+    endY: 120
+  },
+},
+{
+  points: [{
+    x: 402,
+    y: 199
+  }, {
+    x: 498,
+    y: 366
+  }, {
+    x: 441,
+    y: 366
+  }, {
+    x: 372,
+    y: 248
+  }],
+  fill: 'rgb(0,0,0)',
+  label: {
+    text: 'T3',
+    cx: 480,
+    cy: 270,
+    withLine: true,
+    endX: 450,
+    endY: 270
+  },
+},
+];
+
+// label styles
+var labelfontsize = 12;
+var labelfontface = 'verdana';
+var labelpadding = 3;
+
+// pre-create a canvas-image of the arrowhead
+var arrowheadLength = 10;
+var arrowheadWidth = 8;
+var arrowhead = document.createElement('canvas');
+premakeArrowhead();
+
+var legendTexts = ['PD = Partial Discharge',
+  'T1 = Thermal fault < 300 celcius',
+  'T2 = Thermal fault 300 < T < 700 celcius',
+  'T3 = Thermal fault < 300 celcius',
+  'D1 = Thermal fault T > 700 celcius',
+  'D2 = Discharge of High Energy',
+  'DT = Electrical and Thermal'
+];
+
+
+// start drawing
+/////////////////////
+
+
+// draw colored segments inside triangle
+for (var i = 0; i < segments.length; i++) {
+  drawSegment(segments[i]);
+}
+// draw ticklines
+ticklines(v0, v1, 9, 0, 20);
+ticklines(v1, v2, 9, Math.PI * 3 / 4, 20);
+ticklines(v2, v0, 9, Math.PI * 5 / 4, 20);
+// molecules
+moleculeLabel(v0, v1, 100, Math.PI, '% CH4');
+moleculeLabel(v1, v2, 100, 0, '% C2H4');
+moleculeLabel(v2, v0, 75, Math.PI / 2, '% C2H2');
+// draw outer triangle
+drawTriangle(triangle);
+// draw legend
+drawLegend(legendTexts, 75, 450, 15);
+// end drawing
+/////////////////////
+
+function drawSegment(s) {
+  // draw and fill the segment path
+  ctx.beginPath();
+  ctx.moveTo(s.points[0].x, s.points[0].y);
+  for (var i = 1; i < s.points.length; i++) {
+    ctx.lineTo(s.points[i].x, s.points[i].y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = s.fill;
+  ctx.fill();
+  ctx.lineWidth = 0;
+  ctx.strokeStyle = 'black';
+  ctx.stroke();
+  // draw segment's box label
+  if (s.label.withLine) {
+    lineBoxedLabel(s, labelfontsize, labelfontface, labelpadding);
+  } else {
+    boxedLabel(s, labelfontsize, labelfontface, labelpadding);
+  }
+}
+
+
+function moleculeLabel(start, end, offsetLength, angle, text) {
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '14px verdana';
+  var dx = end.x - start.x;
+  var dy = end.y - start.y;
+  var x0 = parseInt(start.x + dx * 0.50);
+  var y0 = parseInt(start.y + dy * 0.50);
+  var x1 = parseInt(x0 + offsetLength * Math.cos(angle));
+  var y1 = parseInt(y0 + offsetLength * Math.sin(angle));
+  ctx.fillStyle = 'black';
+  ctx.fillText(text, x1, y1);
+  // arrow
+  x0 = parseInt(start.x + dx * 0.35);
+  y0 = parseInt(start.y + dy * 0.35);
+  x1 = parseInt(x0 + 50 * Math.cos(angle));
+  y1 = parseInt(y0 + 50 * Math.sin(angle));
+  var x2 = parseInt(start.x + dx * 0.65);
+  var y2 = parseInt(start.y + dy * 0.65);
+  var x3 = parseInt(x2 + 50 * Math.cos(angle));
+  var y3 = parseInt(y2 + 50 * Math.sin(angle));
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x3, y3);
+  ctx.strokeStyle = 'black';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  angle = Math.atan2(dy, dx);
+  ctx.translate(x3, y3);
+  ctx.rotate(angle);
+  ctx.drawImage(arrowhead, -arrowheadLength, -arrowheadWidth / 2);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+function boxedLabel(s, fontsize, fontface, padding) {
+  var centerX = s.label.cx;
+  var centerY = s.label.cy;
+  var text = s.label.text;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = fontsize + 'px ' + fontface;
+  var textwidth = ctx.measureText(text).width;
+  var textheight = fontsize * 1.286;
+  var leftX = centerX - textwidth / 2 - padding;
+  var topY = centerY - textheight / 2 - padding;
+  ctx.fillStyle = 'white';
+  ctx.fillRect(leftX, topY, textwidth + padding * 2, textheight + padding * 2);
+  ctx.lineWidth = 1;
+  ctx.strokeRect(leftX, topY, textwidth + padding * 2, textheight + padding * 2);
+  ctx.fillStyle = 'black';
+  ctx.fillText(text, centerX, centerY);
+}
+
+
+function lineBoxedLabel(s, fontsize, fontface, padding) {
+  var centerX = s.label.cx;
+  var centerY = s.label.cy;
+  var text = s.label.text;
+  var lineToX = s.label.endX;
+  var lineToY = s.label.endY;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = fontsize + 'px ' + fontface;
+  var textwidth = ctx.measureText(text).width;
+  var textheight = fontsize * 1.286;
+  var leftX = centerX - textwidth / 2 - padding;
+  var topY = centerY - textheight / 2 - padding;
+  // the line
+  ctx.beginPath();
+  ctx.moveTo(leftX, topY + textheight / 2);
+  ctx.lineTo(lineToX, topY + textheight / 2);
+  ctx.strokeStyle = 'black';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  // the boxed text
+  ctx.fillStyle = 'white';
+  ctx.fillRect(leftX, topY, textwidth + padding * 2, textheight + padding * 2);
+  ctx.strokeRect(leftX, topY, textwidth + padding * 2, textheight + padding * 2);
+  ctx.fillStyle = 'black';
+  ctx.fillText(text, centerX, centerY);
+}
+
+
+function ticklines(start, end, count, angle, length) {
+  var dx = end.x - start.x;
+  var dy = end.y - start.y;
+  ctx.lineWidth = 1;
+  for (var i = 1; i < count; i++) {
+    var x0 = parseInt(start.x + dx * i / count);
+    var y0 = parseInt(start.y + dy * i / count);
+    var x1 = parseInt(x0 + length * Math.cos(angle));
+    var y1 = parseInt(y0 + length * Math.sin(angle));
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+    if (i == 2 || i == 4 || i == 6 || i == 8) {
+      var labelOffset = length * 3 / 4;
+      x1 = parseInt(x0 - labelOffset * Math.cos(angle));
+      y1 = parseInt(y0 - labelOffset * Math.sin(angle));
+      ctx.fillStyle = 'black';
+      ctx.fillText(parseInt(i * 10), x1, y1);
+    }
+  }
+}
+
+
+function premakeArrowhead() {
+  var actx = arrowhead.getContext('2d');
+  arrowhead.width = arrowheadLength;
+  arrowhead.height = arrowheadWidth;
+  actx.beginPath();
+  actx.moveTo(0, 0);
+  actx.lineTo(arrowheadLength, arrowheadWidth / 2);
+  actx.lineTo(0, arrowheadWidth);
+  actx.closePath();
+  actx.fillStyle = 'black';
+  actx.fill();
+}
+
+
+function drawTriangle(t) {
+  ctx.beginPath();
+  ctx.moveTo(t[0].x, t[0].y);
+  ctx.lineTo(t[1].x, t[1].y);
+  ctx.lineTo(t[2].x, t[2].y);
+  ctx.closePath();
+  ctx.strokeStyle = 'black';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+//Function to draw legends
+function drawLegend(texts, x, y, lineheight) {
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = 'black';
+  ctx.font = '14px Verdana';
+  for (var i = 0; i < texts.length; i++) {
+    ctx.fillText(texts[i], x, y + i * lineheight);
+  }
+}
+//Red Dot function
+function drawCoordinates(x, y) {
+  ctx.fillStyle = "white"; // Red color
+  ctx.beginPath();
+  ctx.arc(x, y, pointSize, 0, Math.PI * 2, true);
+  ctx.fill();
+}
+//Function to draw final cords connecting intersection with the % contribution
+function drawCords(x, y) {
+  ctx.moveTo(x, y);
+  ctx.lineTo(ch4x, ch4y);
+  ctx.moveTo(x, y);
+  ctx.lineTo(c2h4x, c2h4y);
+  ctx.moveTo(x, y);
+  ctx.lineTo(c2h2x, c2h2y);
+  ctx.strokeStyle = 'white';
+  ctx.stroke();
+}
+//Function to fetch the value from database
+function calcOprByValue(ch4, c2h2, c2h4) {
+  total = ch4 + c2h2 + c2h4;
+  var ch4_contr = (ch4 / total);
+  var c2h2_contr = (c2h2 / total);
+  var c2h4_contr = (c2h4 / total);
+  //Draw Bottom Point for bottom line
+  var c2h2_line = BottomCoordinates(c2h2_contr);
+
+  //drawCoordinates(c2h2_line.x, c2h2_line.y);
+  //Left Coordinates
+  var ch4_line = LeftCoordinates(ch4_contr);
+  //drawCoordinates(ch4_line.x, ch4_line.y);
+  //Right Coordinates
+  var c2h4_line = RightCoordinates(c2h4_contr);
+  //drawCoordinates(c2h4_line.x, c2h4_line.y);
+  //Updating coordinates values
+  ch4x = ch4_line.x;
+  ch4y = ch4_line.y;
+  c2h4x = c2h4_line.x;
+  c2h4y = c2h4_line.y;
+  c2h2x = c2h2_line.x;
+  c2h2y = c2h2_line.y;
+  //2 Reflection Coordinates
+  var ref_ch4 = refLeftCoordinates(ch4_contr);
+  //drawCoordinates(ref_ch4.x,ref_ch4.y);
+  var ref_c2h4 = refRightCoordinates(c2h4_contr);
+  //drawCoordinates(ref_c2h4.x,ref_c2h4.y);
+  var res = checkLineIntersection(ch4_line.x, ch4_line.y, ref_ch4.x, ref_ch4.y, c2h4_line.x, c2h4_line.y, ref_c2h4.x, ref_c2h4.y);
+  var color=detectColor(res.x,res.y);
+  findAndDisplayColor(color);
+  drawCoordinates(res.x, res.y);
+  drawCords(res.x, res.y);
+}
+function findAndDisplayColor(color){
+  var red,green,blue;
+    red=color.r;
+    green=color.g;
+    blue=color.b;
+    var diagResult;
+  if(color.r==255&&color.g==0&&color.b==0){
+    diagResult="PD = Partial Discharge";
+  }
+  else if(color.r==255&&color.g==102&&color.b==153){
+    diagResult='T1 = Thermal fault < 300 celcius';
+  }
+  else if(color.r==255&&color.g==204&&color.b==0){
+    diagResult='T2 = Thermal fault 300 < T < 700 celcius';
+  }
+  else if(color.r==0&&color.g==0&&color.b==0){
+    diagResult='T3 = Thermal fault < 300 celcius';
+  }
+  else if(color.r==172&&color.g==236&&color.b==222){
+    diagResult='D1 = Thermal fault T > 700 celcius';
+  }
+  else if(color.r==51&&color.g==51&&color.b==153){
+    diagResult='D2 = Discharge of High Energy';
+  }
+  else{
+    diagResult='DT = Electrical and Thermal';
+  }
+  ctx.fillStyle = 'rgb('+red+','+green+','+blue+')';
+  ctx.fillRect(350, 550, 25, 12);
+  ctx.fillStyle="black";
+  ctx.fillText(diagResult,380,546,300);
+}
+//Detect color of perticular pixel
+function detectColor(x,y){
+ data=ctx.getImageData(x,y,1,1).data;
+ col={
+   r:data[0],
+   g:data[1],
+   b:data[2]
+ };
+ return col;
+}
+//Function to get trigger while clicking button
+function calcOpr() {
+  var val1 = parseFloat(document.getElementById("ch4").value);
+  var val2 = parseFloat(document.getElementById("c2h2").value);
+  var val3 = parseFloat(document.getElementById("c2h4").value);
+  calcOprByValue(val1, val2, val3);
+}
+
+function refRightCoordinates(c2h4_contr) {
+  var dx = (v2.x - v0.x) * c2h4_contr;
+  var coor_x = v0.x + dx;
+  var coor_y = v0.y;
+  return ({
+    x: coor_x,
+    y: coor_y
+  });
+}
+
+function refLeftCoordinates(ch4_contr) {
+  var l = Math.sqrt(Math.pow((v2.x - v1.x), 2) + Math.pow((v2.y - v1.y), 2));
+  var l_eff = l * ch4_contr;
+  var coor_x = v2.x - l_eff * Math.cos(Math.PI / 3);
+  var coor_y = v2.y - l_eff * Math.sin(Math.PI / 3);
+  return ({
+    x: coor_x,
+    y: coor_y
+  });
+} // Calculating coordinates with three gases value
+function LeftCoordinates(ch4_contr) {
+  var l = Math.sqrt(Math.pow((v1.x - v0.x), 2) + Math.pow((v1.y - v0.y), 2));
+  var l_eff = l * ch4_contr;
+  var coor_x = v0.x + l_eff * Math.cos(Math.PI / 3);
+  var coor_y = v0.y - l_eff * Math.sin(Math.PI / 3);
+  //console.log(coor1_y);
+  return ({
+    x: coor_x,
+    y: coor_y
+  });
+}
+
+function BottomCoordinates(c2h2_contr) {
+  var dx = (v2.x - v0.x) * c2h2_contr;
+  var coor_x = v2.x - dx;
+  var coor_y = v0.y;
+  return ({
+    x: coor_x,
+    y: coor_y
+  });
+}
+
+function RightCoordinates(c2h4_contr) {
+  var l = Math.sqrt(Math.pow((v1.x - v2.x), 2) + Math.pow((v1.y - v2.y), 2));
+  var l_eff = l * c2h4_contr;
+  var coor_x = v1.x + l_eff * Math.cos(Math.PI / 3);
+  var coor_y = v1.y + l_eff * Math.sin(Math.PI / 3);
+  return ({
+    x: coor_x,
+    y: coor_y
+  });
+}
+//Intesection and get Point
+function checkLineIntersection(line1StartX, line1StartY, line1EndX, line1EndY, line2StartX, line2StartY, line2EndX, line2EndY) {
+  // if the lines intersect, the result contains the x and y of the intersection (treating the lines as infinite) and booleans for whether line segment 1 or line segment 2 contain the point
+  var denominator, a, b, numerator1, numerator2, result = {
+    x: null,
+    y: null,
+    onLine1: false,
+    onLine2: false
+  };
+  denominator = ((line2EndY - line2StartY) * (line1EndX - line1StartX)) - ((line2EndX - line2StartX) * (line1EndY - line1StartY));
+  if (denominator == 0) {
+    return result;
+  }
+  a = line1StartY - line2StartY;
+  b = line1StartX - line2StartX;
+  numerator1 = ((line2EndX - line2StartX) * a) - ((line2EndY - line2StartY) * b);
+  numerator2 = ((line1EndX - line1StartX) * a) - ((line1EndY - line1StartY) * b);
+  a = numerator1 / denominator;
+  b = numerator2 / denominator;
+
+  // if we cast these lines infinitely in both directions, they intersect here:
+  result.x = line1StartX + (a * (line1EndX - line1StartX));
+  result.y = line1StartY + (a * (line1EndY - line1StartY));
+  /*
+          // it is worth noting that this should be the same as:
+          x = line2StartX + (b * (line2EndX - line2StartX));
+          y = line2StartX + (b * (line2EndY - line2StartY));
+          */
+  // if line1 is a segment and line2 is infinite, they intersect if:
+  if (a > 0 && a < 1) {
+    result.onLine1 = true;
+  }
+  // if line2 is a segment and line1 is infinite, they intersect if:
+  if (b > 0 && b < 1) {
+    result.onLine2 = true;
+  }
+  // if line1 and line2 are segments, they intersect if both of the above are true
+  return result;
+}
+"""
+
+# Combine CSS and JS into the HTML content
+full_html = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>{css_content}</style>
+</head>
+<body>
+    {html_content}
+    <script>{js_content}</script>
+</body>
+</html>
+"""
+def final_duval():
+    # Render the HTML in Streamlit
+    st.components.v1.html(full_html, height=600, width= 1050)
+
+
 
 
 def main():
+    #add_particles_background()
     if "logged_in" not in st.session_state:
         st.session_state["logged_in"] = False
     
@@ -1017,12 +2303,13 @@ def main():
             "Transformer Health & Abnormality Detection": Health_index,
             "Age Prediction using Furan": furan_pred,
             "Furan-Based Abnormality Detection (Over Time)": abnormality_detection,
+            "Duvals' Triangle":  final_duval,
         }
         
         st.sidebar.title("Transformer Remaining Useful Life Prediction")
         
         with st.sidebar:
-
+            
             st.image("https://www.sellintegro.cloud/images/cloud_asset_1-2.svg", use_column_width=True)
 
             st.markdown("## Created by Harsh Sukhwal")
@@ -1085,6 +2372,7 @@ def main():
         if st.session_state["page"] != page:
             st.session_state["page"] = page
 
+    
         pages[page]()
 
 if __name__ == "__main__":
