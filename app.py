@@ -902,10 +902,51 @@ def login():
 
     st.markdown('<div class="login-footer">Created by Harsh Sukhwal</div>', unsafe_allow_html=True)
 
+
+
+
+
+
+
+
 def abnormality_detection():
     st.title("Abnormality Detection in Data")
 
     entry_mode = st.radio("Select Data Entry Mode", ("Manual Entry", "CSV File Upload"))
+
+    def calculate_intervals(rul):
+        if rul > 15:
+            return {
+                "First Test Interval": "After 10 years",
+                "Second Test Interval": "After 2 years if RUL > 5 years<br>Annually if RUL ≤ 5 years",
+                "Third Test Interval": "Based on updated RUL:<br>Quarterly if RUL ≤ 2 years<br>Every 6 months if 2 < RUL ≤ 5 years<br>Annually if RUL > 5 years"
+            }
+        elif 10 < rul <= 15:
+            return {
+                "First Test Interval": "After 5 years",
+                "Second Test Interval": "After 2 years if RUL > 5 years<br>Annually if RUL ≤ 5 years",
+                "Third Test Interval": "Based on updated RUL:<br>Quarterly if RUL ≤ 2 years<br>Every 6 months if 2 < RUL ≤ 5 years<br>Annually if RUL > 5 years"
+            }
+        elif 5 < rul <= 10:
+            return {
+                "First Test Interval": "After 3 years",
+                "Second Test Interval": "Annually",
+                "Third Test Interval": "Based on updated RUL:<br>Quarterly if RUL ≤ 2 years<br>Every 6 months if 2 < RUL ≤ 5 years"
+            }
+        elif 3 < rul <= 5:
+            return {
+                "First Test Interval": "After 2 years",
+                "Second Test Interval": "Annually",
+                "Third Test Interval": "Based on updated RUL:<br>Quarterly if RUL ≤ 2 years<br>Every 6 months if 2 < RUL ≤ 3 years"
+            }
+        elif 1 < rul <= 3:
+            return {
+                "First Test Interval": "After 6 months",
+                "Second Test Interval": "Quarterly",
+                "Third Test Interval": "Monthly"
+            }
+        else:
+            return {"Recommendation": "Take down Transformer from grid to prevent heavy damages"}
 
     def plot_with_zones(dates, values, vendors):
         fig, ax = plt.subplots(figsize=(10, 5))
@@ -924,7 +965,7 @@ def abnormality_detection():
 
         for lower, upper, label, color in zones:
             ax.axhspan(lower, upper, alpha=0.3, color=color, label=label)
-        
+
         # Check for abnormality in slope and vendor change
         for i in range(1, len(values)):
             delta_value = values[i] - values[i-1]
@@ -941,6 +982,7 @@ def abnormality_detection():
                     st.success(f"Possible overhauling between {dates[i-1]} and {dates[i]}", icon="✅")
 
         # Predict when it will reach 8000 value
+        predicted_date_8000 = None
         if len(values) >= 2:
             last_slope = (values[-1] - values[-2]) / ((dates[-1] - dates[-2]).days)
             days_to_8000 = (8000 - values[-1]) / last_slope 
@@ -956,6 +998,8 @@ def abnormality_detection():
 
         ax.legend()
         st.pyplot(fig)
+
+        return predicted_date_8000
 
     if entry_mode == "CSV File Upload":
         uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
@@ -979,7 +1023,14 @@ def abnormality_detection():
             date_values_vendors.sort()  # Sort by date
             sorted_dates, sorted_values, sorted_vendors = zip(*date_values_vendors)
 
-            plot_with_zones(sorted_dates, sorted_values, sorted_vendors)
+            predicted_date_8000 = plot_with_zones(sorted_dates, sorted_values, sorted_vendors)
+            if predicted_date_8000:
+                rul_years = (predicted_date_8000 - sorted_dates[-1]).days / 365
+                intervals = calculate_intervals(rul_years)
+                st.write("Recommended Test Intervals based on Predicted RUL:")
+                st.write(f"Predicted RUL: {rul_years}")
+                for test, interval in intervals.items():
+                    st.write(f"{test}: {interval}")
 
     elif entry_mode == "Manual Entry":
         dates = []
@@ -996,7 +1047,15 @@ def abnormality_detection():
             vendors.append(vendor)
 
         if st.button("Plot Data"):
-            plot_with_zones(dates, values, vendors)
+            predicted_date_8000 = plot_with_zones(dates, values, vendors)
+            if predicted_date_8000:
+                rul_years = (predicted_date_8000 - dates[-1]).days / 365
+                intervals = calculate_intervals(rul_years)
+                st.write("Recommended Test Intervals based on Predicted RUL:")
+                st.write(f"Predicted RUL: {rul_years}")
+                for test, interval in intervals.items():
+                    st.write(f"{test}: {interval}")
+
 if "show_animation" not in st.session_state:
     st.session_state.show_animation = True  # or True, depending on your default preference
 
