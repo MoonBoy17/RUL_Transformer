@@ -917,36 +917,36 @@ def abnormality_detection():
     def calculate_intervals(rul):
         if rul > 15:
             return {
-                "First Test Interval": "After 10 years",
-                "Second Test Interval": "After 2 years if RUL > 5 years<br>Annually if RUL ≤ 5 years",
-                "Third Test Interval": "Based on updated RUL:<br>Quarterly if RUL ≤ 2 years<br>Every 6 months if 2 < RUL ≤ 5 years<br>Annually if RUL > 5 years"
+                "- First Test Interval":      "After 10 years",
+                "- Second Test Interval":     "After 2 years if RUL > 5 years ||| Annually if RUL ≤ 5 years",
+                "- Third Test Interval":      "Based on updated RUL: Quarterly if RUL ≤ 2 years ||| Every 6 months if 2 < RUL ≤ 5 years ||| Annually if RUL > 5 years"
             }
         elif 10 < rul <= 15:
             return {
-                "First Test Interval": "After 5 years",
-                "Second Test Interval": "After 2 years if RUL > 5 years<br>Annually if RUL ≤ 5 years",
-                "Third Test Interval": "Based on updated RUL:<br>Quarterly if RUL ≤ 2 years<br>Every 6 months if 2 < RUL ≤ 5 years<br>Annually if RUL > 5 years"
+                "- First Test Interval":      "After 5 years",
+                "- Second Test Interval":     "After 2 years if RUL > 5 years ||| Annually if RUL ≤ 5 years",
+                "- Third Test Interval":      "Based on updated RUL: Quarterly if RUL ≤ 2 years ||| Every 6 months if 2 < RUL ≤ 5 years ||| Annually if RUL > 5 years"
             }
         elif 5 < rul <= 10:
             return {
-                "First Test Interval": "After 3 years",
-                "Second Test Interval": "Annually",
-                "Third Test Interval": "Based on updated RUL:<br>Quarterly if RUL ≤ 2 years<br>Every 6 months if 2 < RUL ≤ 5 years"
+                "- First Test Interval":      "After 3 years",
+                "- Second Test Interval":     "Annually",
+                "- Third Test Interval":      "Based on updated RUL: Quarterly if RUL ≤ 2 years ||| Every 6 months if 2 < RUL ≤ 5 years"
             }
         elif 3 < rul <= 5:
             return {
-                "First Test Interval": "After 2 years",
-                "Second Test Interval": "Annually",
-                "Third Test Interval": "Based on updated RUL:<br>Quarterly if RUL ≤ 2 years<br>Every 6 months if 2 < RUL ≤ 3 years"
+                "- First Test Interval":      "After 2 years",
+                "- Second Test Interval":     "Annually",
+                "- Third Test Interval":      "Based on updated RUL:Quarterly if RUL ≤ 2 years ||| Every 6 months if 2 < RUL ≤ 3 years"
             }
         elif 1 < rul <= 3:
             return {
-                "First Test Interval": "After 6 months",
-                "Second Test Interval": "Quarterly",
-                "Third Test Interval": "Monthly"
+                "- First Test Interval":      "After 6 months",
+                "- Second Test Interval":     "Quarterly",
+                "- Third Test Interval":      "Monthly"
             }
         else:
-            return {"Recommendation": "Take down Transformer from grid to prevent heavy damages"}
+            return {"- Recommendation": "Take down Transformer from grid to prevent heavy damages"}
 
     def plot_with_zones(dates, values, vendors):
         fig, ax = plt.subplots(figsize=(10, 5))
@@ -1009,26 +1009,40 @@ def abnormality_detection():
             st.write("Here is your dataset:")
             st.write(data)
 
-            row_num = st.number_input("Enter the Row Number to Analyze", min_value=0, max_value=len(data)-1, step=1)
-            selected_row = data.iloc[row_num]
+            search_mode = st.radio("Search by", ("Row Number", "SAP ID"))
 
-            dates = [col for col in data.columns if "date" in col.lower()]
-            values = [col for col in data.columns if "value" in col.lower()]
-            vendors = [col for col in data.columns if "vendor" in col.lower()]
+            selected_row = None
 
-            date_values_vendors = []
-            for date_col, value_col, vendor_col in zip(dates, values, vendors):
-                date_values_vendors.append((pd.to_datetime(selected_row[date_col], dayfirst=True), selected_row[value_col], selected_row[vendor_col]))
+            if search_mode == "Row Number":
+                row_num = st.number_input("Enter the Row Number to Analyze", min_value=0, max_value=len(data)-1, step=1)
+                selected_row = data.iloc[row_num]
+            elif search_mode == "SAP ID":
+                sap_id = st.text_input("Enter the SAP ID to Search", value="0")
+                if sap_id:
+                    selected_row = data[data["SAP ID"].astype(str) == str(sap_id)]
+                    if selected_row.empty:
+                        st.error("SAP ID not found in the dataset.")
+                        return
+                    selected_row = selected_row.iloc[0]
 
-            date_values_vendors.sort()  # Sort by date
-            sorted_dates, sorted_values, sorted_vendors = zip(*date_values_vendors)
+            if selected_row is not None:
+                dates = [col for col in data.columns if "date" in col.lower()]
+                values = [col for col in data.columns if "value" in col.lower()]
+                vendors = [col for col in data.columns if "vendor" in col.lower()]
+
+                date_values_vendors = []
+                for date_col, value_col, vendor_col in zip(dates, values, vendors):
+                    date_values_vendors.append((pd.to_datetime(selected_row[date_col], dayfirst=True), selected_row[value_col], selected_row[vendor_col]))
+
+                date_values_vendors.sort()  # Sort by date
+                sorted_dates, sorted_values, sorted_vendors = zip(*date_values_vendors)
 
             predicted_date_8000 = plot_with_zones(sorted_dates, sorted_values, sorted_vendors)
             if predicted_date_8000:
                 rul_years = (predicted_date_8000 - sorted_dates[-1]).days / 365
                 intervals = calculate_intervals(rul_years)
-                st.write("Recommended Test Intervals based on Predicted RUL:")
-                st.write(f"Predicted RUL: {rul_years}")
+                st.info(f"Recommended Test Intervals based on Predicted RUL:")
+                st.write(f"- Predicted RUL: {round(rul_years,2)} years")
                 for test, interval in intervals.items():
                     st.write(f"{test}: {interval}")
 
@@ -1051,8 +1065,8 @@ def abnormality_detection():
             if predicted_date_8000:
                 rul_years = (predicted_date_8000 - dates[-1]).days / 365
                 intervals = calculate_intervals(rul_years)
-                st.write("Recommended Test Intervals based on Predicted RUL:")
-                st.write(f"Predicted RUL: {rul_years}")
+                st.write("Recommended Test Intervals based on Predicted RUL:", icon="💡")
+                st.write(f"- Predicted RUL: {round(rul_years,2)} years")
                 for test, interval in intervals.items():
                     st.write(f"{test}: {interval}")
 
