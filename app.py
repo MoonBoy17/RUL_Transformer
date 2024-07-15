@@ -392,6 +392,8 @@ def home_analysis():
         ax.set_ylabel("Health Index")
         st.pyplot(fig)
 
+        from sklearn.model_selection import train_test_split
+        from lazypredict.Supervised import LazyRegressor
         if "Furan" in data.columns and "Age(Yrs)" in data.columns:
             st.subheader("Trend Analysis: Age vs Furan")
             fig, ax = plt.subplots(figsize=(13, 3))
@@ -400,26 +402,34 @@ def home_analysis():
             ax.set_ylabel("Furan")
             st.pyplot(fig)
 
+        # Model Training and Evaluation
         column = "Health Indx"
         if st.button("Train Model"):
             X = data.drop(columns=[column])
             y = data[column]
 
+            # Split the data into training and testing sets (80-20 split)
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+            # Initialize LazyRegressor
             reg = LazyRegressor()
-            models, predictions = reg.fit(X, X, y, y)
+            
+            # Train and evaluate the models
+            models_train, _ = reg.fit(X_train, X_train, y_train, y_train)  # Training performance
+            _, predictions_test = reg.fit(X_train, X_test, y_train, y_test)  # Testing performance
 
             col1, col2 = st.columns(2)
 
             with col1:
-                st.subheader("Model Performance")
-                st.write(models)
+                st.subheader("Model Performance on Training Data")
+                st.write(models_train)
 
             with col2:
-                st.subheader("Predictions")
-                st.write(predictions)
+                st.subheader("Predictions on Testing Data")
+                st.write(predictions_test)
 
             if st.button("Download Predictions"):
-                predictions_csv = predictions.to_csv(index=False).encode('utf-8')
+                predictions_csv = predictions_test.to_csv(index=False).encode('utf-8')
                 st.download_button(
                     label="Download Predictions as CSV",
                     data=predictions_csv,
@@ -428,7 +438,7 @@ def home_analysis():
                 )
 
             # Identifying the best model based on the highest R^2 score
-            best_model_name = models.sort_values(by="R-Squared", ascending=False).index[0]
+            best_model_name = predictions_test.sort_values(by="R-Squared", ascending=False).index[0]
             best_model = reg.models[best_model_name]
 
             st.session_state["best_model"] = best_model
