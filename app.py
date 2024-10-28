@@ -2223,10 +2223,10 @@ function findAndDisplayColor(color){
     diagResult='T2 = Thermal fault 300 < T < 700 celcius';
   }
   else if(color.r==0&&color.g==0&&color.b==0){
-    diagResult='T3 = Thermal fault < 300 celcius';
+    diagResult='T3 = Thermal fault > 700 celcius';
   }
   else if(color.r==172&&color.g==236&&color.b==222){
-    diagResult='D1 = Thermal fault T > 700 celcius';
+    diagResult='D1 = Low Energy Discharge';
   }
   else if(color.r==51&&color.g==51&&color.b==153){
     diagResult='D2 = Discharge of High Energy';
