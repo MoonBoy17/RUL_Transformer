@@ -1375,8 +1375,8 @@ def display_duval_triangle_page():
                     { label: 'PD = Partial Discharge', color: colors.PD, x: 0, y: 454 },
                     { label: 'T1 = Thermal fault < 300 celcius', color: colors.T1, x: 0, y: 469 },
                     { label: 'T2 = Thermal fault 300 < T < 700 celcius', color: colors.T2, x: 0, y: 484 },
-                    { label: 'T3 = Thermal fault < 300 celcius', color: colors.T3, x: 0, y: 499 },
-                    { label: 'D1 = Thermal fault T > 700 celcius', color: colors.D1, x: 0, y: 514 },
+                    { label: 'T3 = Thermal fault T > 700 celcius', color: colors.T3, x: 0, y: 499 },
+                    { label: 'D1 = Low Energy Discharge', color: colors.D1, x: 0, y: 514 },
                     { label: 'D2 = Discharge of High Energy', color: colors.D2, x: 0, y: 529 },
                     { label: 'DT = Electrical and Thermal', color: colors.DT, x: 0, y: 544 }
                 ];
@@ -1562,9 +1562,9 @@ def display_duval_triangle_page():
                 } else if (ch4Percentage > 12 && c2h2Percentage < 23 && c2h4Percentage < 40) {
                     result = "T2 = Thermal fault 300 < T < 700 celcius";
                 } else if (ch4Percentage > 30 && c2h2Percentage < 22 && c2h4Percentage < 50) {
-                    result = "T3 = Thermal fault < 300 celcius";
+                    result = "T3 = Thermal fault T > 700 celcius";
                 } else if (ch4Percentage < 30 && c2h2Percentage < 40 && c2h4Percentage > 35) {
-                    result = "D1 = Thermal fault T > 700 celcius";
+                    result = "D1 = Low Energy Discharge";
                 } else if (ch4Percentage < 50 && c2h2Percentage > 23 && c2h4Percentage < 55) {
                     result = "D2 = Discharge of High Energy";
                 } else if (ch4Percentage < 80 && c2h2Percentage > 60 && c2h4Percentage < 70) {
@@ -1962,8 +1962,8 @@ premakeArrowhead();
 var legendTexts = ['PD = Partial Discharge',
   'T1 = Thermal fault < 300 celcius',
   'T2 = Thermal fault 300 < T < 700 celcius',
-  'T3 = Thermal fault < 300 celcius',
-  'D1 = Thermal fault T > 700 celcius',
+  'T3 = Thermal fault T > 700 celcius',
+  'D1 = Low Energy Discharge',
   'D2 = Discharge of High Energy',
   'DT = Electrical and Thermal'
 ];
