@@ -530,15 +530,21 @@ def home_analysis():
                     with col2:
                         st.subheader("Correlation Heatmap of Predicted Data")
                         st.subheader("Correlation Heatmap of Predicted Data") 
-                        numeric_df = new_data.select_dtypes(include=np.number) 
+                        numeric_df = new_data.select_dtypes(include=np.number)
                         corr = numeric_df.corr()
-                        fig_heatmap = px.imshow(
-                            corr,
-                            text_auto=True,
-                            aspect="auto",
-                            color_continuous_scale='coolwarm'
-                        )
-                        st.plotly_chart(fig_heatmap, use_container_width=True)
+                        if not corr.empty and corr.notna().any().any():
+                            st.subheader("Correlation Heatmap of Predicted Data")
+                            fig_heatmap = px.imshow(
+                                corr,
+                                text_auto=True,
+                                aspect="auto",
+                                color_continuous_scale='coolwarm'
+                            )
+                            st.plotly_chart(fig_heatmap, use_container_width=True)
+                        else:
+                            # If the matrix is invalid, inform the user instead of crashing.
+                            st.warning("Correlation Heatmap could not be generated. The uploaded data for prediction must contain at least two numeric columns with valid data.")
+
 
 def interpolate(x1, y1, x2, y2, x):
     return y1 + ((y2 - y1) / (x2 - x1)) * (x - x1)
