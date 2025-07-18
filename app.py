@@ -7,6 +7,8 @@ import random
 import hashlib
 import streamlit.components.v1 as components
 import seaborn as sns
+import plotly.express as px
+
 
 st.set_page_config(page_title="Interactive Data Analysis", page_icon=":bar_chart:", layout="wide")
 
@@ -370,38 +372,44 @@ def home_analysis():
         st.header("Data Visualizations")
 
         # Pie Chart of Health Index distribution
-        st.subheader("Pie Chart of Health Index Distribution")
+        st.subheader("Health Index Distribution")
         # Create bins for the Health Index ranges
-        bins = [0, 70, 80, 90, 100]
-        labels = ['0-30','30-50','50-85', '85-100']
+        bins = [0, 70, 80, 90, 101] # Changed 100 to 101 to include values of 100
+        labels = ['Poor (0-70)', 'Fair (70-80)', 'Good (80-90)', 'Excellent (90-100)']
         health_index_binned = pd.cut(data['Health Indx'], bins=bins, labels=labels, right=False)
         health_index_distribution = health_index_binned.value_counts().sort_index()
 
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            fig, ax = plt.subplots(figsize=(6, 6))
-            ax.pie(health_index_distribution, labels=health_index_distribution.index, autopct='%1.1f%%', colors=sns.color_palette("Accent", len(health_index_distribution)))
-            st.pyplot(fig)
+        fig_pie = px.pie(
+            health_index_distribution,
+            values=health_index_distribution.values,
+            names=health_index_distribution.index,
+            color_discrete_sequence=px.colors.sequential.Agsunset
+        )
+        st.plotly_chart(fig_pie, use_container_width=True)
+  
 
         # Line Chart for a trend analysis (example: Age vs Health Index)
         st.subheader("Trend Analysis: Age vs Health Index")
-        fig, ax = plt.subplots(figsize=(13, 3))
-        ax.plot(data['Age(Yrs)'], data['Health Indx'], 'bo')
-        ax.set_xlabel("Age (Years)")
-        ax.set_ylabel("Health Index")
-        st.pyplot(fig)
-
+        fig_scatter_health = px.scatter(
+            data,
+            x='Age(Yrs)',
+            y='Health Indx',
+            hover_data=['Furan'] # Example of adding more context on hover
+        )
+        st.plotly_chart(fig_scatter_health, use_container_width=True)
+  
         from sklearn.model_selection import train_test_split
         from lazypredict.Supervised import LazyRegressor
         if "Furan" in data.columns and "Age(Yrs)" in data.columns:
+            # --- REPLACED MATPLOTLIB SCATTER PLOT WITH PLOTLY ---
             st.subheader("Trend Analysis: Age vs Furan")
-            fig, ax = plt.subplots(figsize=(13, 3))
-            ax.plot(data["Age(Yrs)"], data["Furan"], 'bo')
-            ax.set_xlabel("Age (Years)")
-            ax.set_ylabel("Furan")
-            st.pyplot(fig)
-
+            fig_scatter_furan = px.scatter(
+                data,
+                x="Age(Yrs)",
+                y="Furan"
+            )
+            st.plotly_chart(fig_scatter_furan, use_container_width=True)
+  
         # Model Training and Evaluation
         column = "Health Indx"
         if st.button("Train Model"):
@@ -514,19 +522,21 @@ def home_analysis():
                     # Histogram of predicted Health Index values
                     with col1:
                         st.subheader("Distribution of Predicted Health Index")
-                        fig, ax = plt.subplots(figsize=(7.75, 6))
-                        ax.hist(new_data["Health Indx Prediction"], bins=20, edgecolor='white')
-                        ax.set_xlabel("Health Indx Prediction")
-                        ax.set_ylabel("Frequency")
-                        st.pyplot(fig)
+                        fig_hist = px.histogram(new_data, x="Health Indx Prediction")
+                        st.plotly_chart(fig_hist, use_container_width=True)
+  
 
                     # Correlation Heatmap
                     with col2:
-                        st.subheader("Correlation Heatmap")
+                        st.subheader("Correlation Heatmap of Predicted Data")
                         corr = new_data.corr()
-                        fig, ax = plt.subplots(figsize=(18, 12))
-                        sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax)
-                        st.pyplot(fig)
+                        fig_heatmap = px.imshow(
+                            corr,
+                            text_auto=True,
+                            aspect="auto",
+                            color_continuous_scale='coolwarm'
+                        )
+                        st.plotly_chart(fig_heatmap, use_container_width=True)
 
 def interpolate(x1, y1, x2, y2, x):
     return y1 + ((y2 - y1) / (x2 - x1)) * (x - x1)
@@ -1375,8 +1385,8 @@ def display_duval_triangle_page():
                     { label: 'PD = Partial Discharge', color: colors.PD, x: 0, y: 454 },
                     { label: 'T1 = Thermal fault < 300 celcius', color: colors.T1, x: 0, y: 469 },
                     { label: 'T2 = Thermal fault 300 < T < 700 celcius', color: colors.T2, x: 0, y: 484 },
-                    { label: 'T3 = Thermal fault T > 700 celcius', color: colors.T3, x: 0, y: 499 },
-                    { label: 'D1 = Low Energy Discharge', color: colors.D1, x: 0, y: 514 },
+                    { label: 'T3 = Thermal fault < 300 celcius', color: colors.T3, x: 0, y: 499 },
+                    { label: 'D1 = Thermal fault T > 700 celcius', color: colors.D1, x: 0, y: 514 },
                     { label: 'D2 = Discharge of High Energy', color: colors.D2, x: 0, y: 529 },
                     { label: 'DT = Electrical and Thermal', color: colors.DT, x: 0, y: 544 }
                 ];
@@ -1562,9 +1572,9 @@ def display_duval_triangle_page():
                 } else if (ch4Percentage > 12 && c2h2Percentage < 23 && c2h4Percentage < 40) {
                     result = "T2 = Thermal fault 300 < T < 700 celcius";
                 } else if (ch4Percentage > 30 && c2h2Percentage < 22 && c2h4Percentage < 50) {
-                    result = "T3 = Thermal fault T > 700 celcius";
+                    result = "T3 = Thermal fault < 300 celcius";
                 } else if (ch4Percentage < 30 && c2h2Percentage < 40 && c2h4Percentage > 35) {
-                    result = "D1 = Low Energy Discharge";
+                    result = "D1 = Thermal fault T > 700 celcius";
                 } else if (ch4Percentage < 50 && c2h2Percentage > 23 && c2h4Percentage < 55) {
                     result = "D2 = Discharge of High Energy";
                 } else if (ch4Percentage < 80 && c2h2Percentage > 60 && c2h4Percentage < 70) {
@@ -1962,8 +1972,8 @@ premakeArrowhead();
 var legendTexts = ['PD = Partial Discharge',
   'T1 = Thermal fault < 300 celcius',
   'T2 = Thermal fault 300 < T < 700 celcius',
-  'T3 = Thermal fault T > 700 celcius',
-  'D1 = Low Energy Discharge',
+  'T3 = Thermal fault < 300 celcius',
+  'D1 = Thermal fault T > 700 celcius',
   'D2 = Discharge of High Energy',
   'DT = Electrical and Thermal'
 ];
@@ -2223,10 +2233,10 @@ function findAndDisplayColor(color){
     diagResult='T2 = Thermal fault 300 < T < 700 celcius';
   }
   else if(color.r==0&&color.g==0&&color.b==0){
-    diagResult='T3 = Thermal fault > 700 celcius';
+    diagResult='T3 = Thermal fault < 300 celcius';
   }
   else if(color.r==172&&color.g==236&&color.b==222){
-    diagResult='D1 = Low Energy Discharge';
+    diagResult='D1 = Thermal fault T > 700 celcius';
   }
   else if(color.r==51&&color.g==51&&color.b==153){
     diagResult='D2 = Discharge of High Energy';
