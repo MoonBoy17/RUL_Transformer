@@ -532,7 +532,7 @@ def home_analysis():
                         st.subheader("Correlation Heatmap of Predicted Data") 
                         numeric_df = new_data.select_dtypes(include=np.number)
                         corr = numeric_df.corr()
-                        if not corr.empty and corr.notna().any().any():
+                        if not corr.empty and corr.shape[0] > 1:
                             st.subheader("Correlation Heatmap of Predicted Data")
                             fig_heatmap = px.imshow(
                                 corr,
@@ -542,8 +542,8 @@ def home_analysis():
                             )
                             st.plotly_chart(fig_heatmap, use_container_width=True)
                         else:
-                            # If the matrix is invalid, inform the user instead of crashing.
-                            st.warning("Correlation Heatmap could not be generated. The uploaded data for prediction must contain at least two numeric columns with valid data.")
+                            # If the matrix is too small, inform the user.
+                            st.warning("Correlation Heatmap could not be generated. This usually happens if the prediction data has fewer than two numeric columns.")
 
 
 def interpolate(x1, y1, x2, y2, x):
