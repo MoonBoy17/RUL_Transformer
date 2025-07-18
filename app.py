@@ -528,12 +528,10 @@ def home_analysis():
 
                     # Correlation Heatmap
                     with col2:
-                        st.subheader("Correlation Heatmap of Predicted Data")
                         st.subheader("Correlation Heatmap of Predicted Data") 
                         numeric_df = new_data.select_dtypes(include=np.number)
                         corr = numeric_df.corr()
                         if not corr.empty and corr.shape[0] > 1:
-                            st.subheader("Correlation Heatmap of Predicted Data")
                             fig_heatmap = px.imshow(
                                 corr,
                                 text_auto=True,
