@@ -524,36 +524,7 @@ def home_analysis():
                         st.subheader("Distribution of Predicted Health Index")
                         fig_hist = px.histogram(new_data, x="Health Indx Prediction")
                         st.plotly_chart(fig_hist, use_container_width=True)
-  
-
-                   # Correlation Heatmap
-                    with col2:
-                        st.subheader("Correlation Heatmap of Predicted Data")
-                    
-                        # --- START OF FIX ---
-                    
-                        # 1. Select only the numeric columns from your data
-                        numeric_df = new_data.select_dtypes(include=np.number)
-                        
-                        # 2. Calculate the correlation matrix on the numeric data
-                        corr = numeric_df.corr()
-                    
-                        # 3. IMPORTANT: Check if the correlation matrix is valid for plotting
-                        #    A heatmap needs at least two columns to compare.
-                        if not corr.empty and corr.shape[0] > 1:
-                            # If it's valid, create and display the chart
-                            fig_heatmap = px.imshow(
-                                corr,
-                                text_auto=True,
-                                aspect="auto",
-                                color_continuous_scale='coolwarm'
-                            )
-                            st.plotly_chart(fig_heatmap, use_container_width=True)
-                        else:
-                            # If it's not valid, show a warning instead of crashing
-                            st.warning("Could not generate a correlation heatmap. The prediction data must have at least two numeric columns.")
-                            
-                  
+          
 
 
 def interpolate(x1, y1, x2, y2, x):
